@@ -39,16 +39,18 @@ export function Results({ terraces, loading, meta, sky, satError, time, now, use
   const dayStart = parisMidnight(time)
 
   const items = useMemo(() => {
-    // One line per establishment: its sunniest terrace.
-    const best = new Map<string, Item>()
+    // One line per establishment: its sunniest terrace. The same café often has several
+    // terraces, sometimes filed under neighbouring street numbers: same name within 40 m.
+    const groups: Item[] = []
     for (const terrace of terraces) {
       const o = outlook(time, dayStart, dayStart + 86400, terrace, meta, sky)
-      const key = `${terrace.name}|${terrace.addr}`
-      const prev = best.get(key)
+      const item = { terrace, o, dist: user ? distanceM(user, terrace) : null }
+      const same = groups.findIndex((g) => g.terrace.name === terrace.name && distanceM(g.terrace, terrace) < 40)
       const rank = (x: Outlook) => (sunny(x.now) ? 1e6 : 0) + x.minutes
-      if (!prev || rank(o) > rank(prev.o)) best.set(key, { terrace, o, dist: user ? distanceM(user, terrace) : null })
+      if (same < 0) groups.push(item)
+      else if (rank(o) > rank(groups[same].o)) groups[same] = item
     }
-    return [...best.values()]
+    return groups
   }, [terraces, meta, sky, time, dayStart, user])
 
   if (loading) return <p className="note">{t('loading')}</p>

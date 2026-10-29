@@ -61,6 +61,12 @@ async function frame(time: number, lat: number, lon: number): Promise<SatFrame> 
 export async function fetchSatellite(lat: number, lon: number): Promise<Satellite> {
   const last = await latestTime()
   const times = Array.from({ length: FRAMES }, (_, k) => last - (FRAMES - 1 - k) * 600)
-  const frames = await Promise.all(times.map((t) => frame(t, lat, lon)))
+  // A missing image should not cost the whole nowcast: retry once, then do without it.
+  const results = await Promise.allSettled(times.map((t) => frame(t, lat, lon).catch(() => frame(t, lat, lon))))
+  const frames = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+  if (!frames.length || frames[frames.length - 1].time !== last) {
+    const failed = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+    throw failed?.reason ?? new Error('no satellite image')
+  }
   return { frames, lat, lon, kmPerPx: (2 * SAT_HALF_LAT * 111.2) / SAT_SIZE }
 }
