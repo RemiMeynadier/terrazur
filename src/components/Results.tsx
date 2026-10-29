@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { t } from '../i18n'
-import { type Answer, answeredRecently, record } from '../lib/feedback'
+import { t, type TKey } from '../i18n'
+import { type Answer, answeredRecently, record, stats, verdict } from '../lib/feedback'
 import { duration, parisMidnight, prettyName } from '../lib/format'
 import type { HorizonMeta, Terrace } from '../lib/horizon'
 import { STATE_LABEL, sunText } from '../lib/labels'
@@ -139,25 +139,36 @@ function Row({ item, open, onToggle, meta, sky, time, now, dayStart, user }: Row
   )
 }
 
-const ANSWERS: [Answer, 'aSun' | 'aPartial' | 'aShade' | 'aCloud'][] = [
-  ['sun', 'aSun'],
-  ['partial', 'aPartial'],
-  ['shade', 'aShade'],
-  ['cloud', 'aCloud'],
+const ANSWERS: [Answer, string, TKey][] = [
+  ['sun', '☀️', 'aSun'],
+  ['partial', '🌤️', 'aPartial'],
+  ['shade', '🌑', 'aShade'],
+  ['cloud', '☁️', 'aCloud'],
 ]
 
-// "You're there? Is it in the sun?" Scores the model.
+const PREDICTED: Record<string, string> = { sun: '☀️', partial: '🌤️', trees: '🌳', shade: '🌑', cloud: '☁️', night: '🌙' }
+
+// "You're there? Sun or not?" A quick game that also scores the model.
 function Check({ terrace, o, meta, sky, now, user }: { terrace: Terrace; o: Outlook; meta: HorizonMeta & { generated: string }; sky: SkyNowcast; now: number; user: { lat: number; lon: number } | null }) {
   const [given, setGiven] = useState<Answer | null>(() => answeredRecently(terrace.id, now))
-  if (given)
+  if (given) {
+    const v = verdict(given, o.now.state)
+    const st = stats()
     return (
-      <p className="check done">
-        {t('thanks')}{' '}
-        <button type="button" className="link" onClick={() => setGiven(null)}>
-          {t('changeAnswer')}
-        </button>
-      </p>
+      <div className={`check done v-${v}`}>
+        <p className="verdict">
+          <span className="pop" aria-hidden="true">{v === 'right' ? '🎯' : v === 'close' ? '👌' : '🙈'}</span>
+          {t(v === 'right' ? 'vRight' : v === 'close' ? 'vClose' : 'vWrong', { p: PREDICTED[o.now.state] ?? '' })}
+        </p>
+        <p className="note">
+          {t('myScore', { n: st.checks, r: st.right })}{' '}
+          <button type="button" className="link" onClick={() => setGiven(null)}>
+            {t('changeAnswer')}
+          </button>
+        </p>
+      </div>
     )
+  }
   const answer = (a: Answer) => {
     const s = skyAt(sky, now, terrace.lat, terrace.lon)
     record({
@@ -178,10 +189,11 @@ function Check({ terrace, o, meta, sky, now, user }: { terrace: Terrace; o: Outl
   return (
     <div className="check">
       <p>{t('checkQ')}</p>
-      <div className="choices">
-        {ANSWERS.map(([a, k]) => (
+      <div className="answers">
+        {ANSWERS.map(([a, emoji, k]) => (
           <button key={a} type="button" onClick={() => answer(a)}>
-            {t(k)}
+            <span className="emoji" aria-hidden="true">{emoji}</span>
+            <span>{t(k)}</span>
           </button>
         ))}
       </div>

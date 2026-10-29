@@ -84,3 +84,13 @@ describe('format', () => {
     expect(new Date(parisMidnight(noon, 1) * 1000).toISOString()).toBe('2026-10-25T23:00:00.000Z') // CET
   })
 })
+
+describe('on-site checks', () => {
+  it('judges the forecast', async () => {
+    const { verdict } = await import('./feedback')
+    expect(verdict('sun', 'sun')).toBe('right')
+    expect(verdict('shade', 'trees')).toBe('right')
+    expect(verdict('partial', 'sun')).toBe('close')
+    expect(verdict('cloud', 'sun')).toBe('wrong')
+  })
+})

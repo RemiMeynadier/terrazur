@@ -23,6 +23,7 @@ export interface Report {
 
 const KEY = 'tz.feedback'
 const DONE = 'tz.feedback.done'
+const STATS = 'tz.feedback.stats'
 const URL: string = import.meta.env.VITE_FEEDBACK_URL ?? ''
 
 function read<T>(key: string, fallback: T): T {
@@ -49,12 +50,31 @@ export function answeredRecently(terrace: number, now: number): Answer | null {
   return hit && now - hit[1] < 3600 ? hit[0] : null
 }
 
+export type Verdict = 'right' | 'close' | 'wrong'
+
+// Did the model see it coming? Sun and "partly" are neighbours; trees count as shade.
+export function verdict(answer: Answer, predicted: string): Verdict {
+  const p = predicted === 'trees' ? 'shade' : predicted === 'night' ? 'shade' : predicted
+  if (p === answer) return 'right'
+  const sunny = (x: string) => x === 'sun' || x === 'partial'
+  return sunny(p) && sunny(answer) ? 'close' : 'wrong'
+}
+
+export interface Stats {
+  checks: number
+  right: number // the model was right (or close)
+}
+
+export const stats = (): Stats => read<Stats>(STATS, { checks: 0, right: 0 })
+
 export function record(r: Omit<Report, 'uid'>) {
   const report: Report = { uid: crypto.randomUUID(), ...r }
   write(KEY, [...read<Report[]>(KEY, []), report])
   const done = read<Record<string, [Answer, number]>>(DONE, {})
   done[r.terrace] = [r.answer, r.at]
   write(DONE, done)
+  const st = stats()
+  write(STATS, { checks: st.checks + 1, right: st.right + (verdict(r.answer, r.predicted) === 'wrong' ? 0 : 1) })
   void flush()
 }
 

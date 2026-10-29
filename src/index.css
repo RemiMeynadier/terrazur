@@ -260,19 +260,80 @@ summary {
 
 .check {
   margin: 0 0 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--st-sun) 12%, transparent);
 }
 
 .check p {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
+  margin: 0 0 10px;
+  font-weight: 600;
 }
 
-.check.done {
-  color: var(--ink-2);
-  font-size: 0.9rem;
+.answers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.answers button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 14px;
+  background: var(--page);
+  font-size: 0.8rem;
+  transition: transform 0.12s ease;
+}
+
+.answers button:active {
+  transform: scale(0.92);
+}
+
+.answers .emoji {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.check.done .verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.check.done .note {
+  margin: 0;
+  font-weight: 400;
+}
+
+.check.v-wrong {
+  background: color-mix(in srgb, var(--st-cloud) 18%, transparent);
+}
+
+.pop {
+  font-size: 1.8rem;
+  display: inline-block;
+  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.2) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: none;
+  }
 }
 
 /* State colours */
