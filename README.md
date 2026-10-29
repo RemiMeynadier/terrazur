@@ -4,9 +4,13 @@ Which **Paris café and bar terraces are in the sun**, now and later today, and 
 
 👉 **Live: https://remimeynadier.github.io/terrazur/** (français / English: toggle in the header, or `?lang=fr` / `?lang=en`)
 
-Four steps, nothing else: **where** (a café by name, a street, a quartier, an arrondissement, or around me), **when** (now, in 1 or 2 hours, another
-time), the **sky** there and then, the **terraces in the sun** and how long it lasts, and, once there, **is it really in the sun?** Those on-site
+A map and five buttons, nothing else: pick a time (**now**, **+1 h** … **+4 h**, each with the sky to expect), and every terrace
+on the map shows its sun at that time (yellow: in the sun, green: trees, grey: shade, blue: clouds). Tap a terrace, then its name,
+for how long the sun lasts, its day at a glance, the sky seen from it, and, once there, **is it really in the sun?** Those on-site
 answers are stored with what the model predicted, to score it and improve it.
+
+The first version, a step-by-step list (where, when, sky, terraces), is kept on the [`v1`](https://github.com/RemiMeynadier/terrazur/tree/v1)
+branch (tag `v1.0.0`).
 
 A terrace is in the sun when two things hold: the sun is above the buildings and trees around it, and no cloud
 hides it. Terrazur computes both.
@@ -70,7 +74,7 @@ src/
   lib/sky.ts            chance the sun is out (line of sight, parallax, blending)
   lib/status.ts         terrace state, how long the sun lasts
   lib/feedback.ts       on-site answers, outbox
-  components/           results list, day strip, sky panorama
+  components/           map, terrace sheet, day strip, sky panorama
 ```
 
 ## Limits

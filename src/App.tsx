@@ -1,45 +1,51 @@
 import { useEffect, useMemo, useState } from 'react'
-import { type DataIndex, fetchCell, fetchIndex } from './api/data'
+import { fetchCell, fetchIndex } from './api/data'
 import { fetchSatellite } from './api/satellite'
-import { fetchWeather } from './api/weather'
-import { Results } from './components/Results'
-import { Sky } from './components/Sky'
-import { WhereInput } from './components/WhereInput'
+import { fetchWeather, rainBetween } from './api/weather'
+import { type Focus, type Pin, TerraceMap, type View } from './components/TerraceMap'
+import { TerraceSheet } from './components/TerraceSheet'
 import { getLang, type Lang, setLang, t, tList } from './i18n'
 import { flush } from './lib/feedback'
-import { parisMidnight } from './lib/format'
-import { centreOf, contains, type Place } from './lib/places'
-import { satMotion, type SkyNowcast } from './lib/sky'
-import { STEP } from './lib/status'
+import { clearAround, satMotion, type SkyNowcast } from './lib/sky'
+import { STEP, statusAt, sunny } from './lib/status'
+import { sunPosition } from './lib/sun'
 import { useAsync, useNow } from './lib/useAsync'
+import { icon } from './lib/weatherIcon'
 
-const PARIS = { lat: 48.8566, lon: 2.3522 }
+const VIEW_KEY = 'tz.view'
+const DETAIL_ZOOM = 15 // from here on, each terrace's sun is computed
+const MAX_CELLS = 40
+const HOURS = [0, 1, 2, 3, 4]
 
-type When = { kind: 'now' } | { kind: 'in'; minutes: number } | { kind: 'at'; day: number; minutes: number }
-
-// Shareable links: ?q=<quartier> | ?arr=<n> | ?rue=<street>
-function initialWhere(): Place | null {
-  const p = new URLSearchParams(location.search)
-  if (p.get('q')) return { kind: 'quartier', id: Number(p.get('q')) }
-  if (p.get('arr')) return { kind: 'arr', n: Number(p.get('arr')) }
-  if (p.get('rue')) return { kind: 'street', name: p.get('rue')! }
-  if (p.get('v')) return { kind: 'venue', id: Number(p.get('v')), name: '', lat: 0, lon: 0 } // resolved once the index is in
-  return null
+// Where the map opens: the last place seen, else central Paris.
+function startFocus(): Focus {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
+    if (v && Number.isFinite(v.lat) && Number.isFinite(v.lon) && Number.isFinite(v.zoom)) return { ...v, key: 'start' }
+  } catch {
+    // No storage: default view.
+  }
+  return { lat: 48.8545, lon: 2.3445, zoom: 16, key: 'start' }
 }
 
-// A venue from a shared link only has its id until the index is in.
-function resolveVenue(p: Place | null, index: DataIndex | null): Place | null {
-  if (p?.kind !== 'venue' || p.name) return p
-  const e = index?.terraces.find((x) => x.id === p.id)
-  return e ? { kind: 'venue', id: e.id, name: e.name, lat: e.lat, lon: e.lon } : null
+// Shareable link to one terrace: ?v=<id>
+const linkedTerrace = () => Number(new URLSearchParams(location.search).get('v')) || null
+
+const within = (p: { lat: number; lon: number }, v: View, pad: number) => {
+  const dLat = (v.north - v.south) * pad
+  const dLon = (v.east - v.west) * pad
+  return p.lat >= v.south - dLat && p.lat <= v.north + dLat && p.lon >= v.west - dLon && p.lon <= v.east + dLon
 }
 
 export default function App() {
   const [lang, setLangState] = useState<Lang>(getLang)
   const now = Math.floor(useNow(60_000) / 1000)
-  const [chosenWhere, setWhere] = useState<Place | null>(initialWhere)
-  const [when, setWhen] = useState<When>({ kind: 'now' })
-  const [kind, setKind] = useState(0) // 0: all; else 1 café, 2 bar, 4 restaurant
+  const [hours, setHours] = useState(0)
+  const [view, setView] = useState<View | null>(null)
+  const [selected, setSelected] = useState<number | null>(linkedTerrace)
+  const [start] = useState(startFocus)
+  const [jump, setJump] = useState<Focus | null>(null)
+  const [user, setUser] = useState<{ lat: number; lon: number } | null>(null)
   const [locating, setLocating] = useState<'idle' | 'busy' | 'denied'>('idle')
 
   const toggleLang = () => {
@@ -50,152 +56,150 @@ export default function App() {
   useEffect(() => void flush(), [])
 
   const index = useAsync('index', fetchIndex)
-  const where = useMemo(() => resolveVenue(chosenWhere, index.value), [chosenWhere, index.value])
+  const linked = useMemo(() => {
+    const id = linkedTerrace()
+    return id ? (index.value?.terraces.find((e) => e.id === id) ?? null) : null
+  }, [index.value])
+  const focus = jump ?? (linked ? { lat: linked.lat, lon: linked.lon, zoom: 18, key: `v${linked.id}` } : start)
 
   useEffect(() => {
     document.documentElement.lang = lang
     const q = new URLSearchParams({ lang })
-    if (where?.kind === 'quartier') q.set('q', String(where.id))
-    if (where?.kind === 'arr') q.set('arr', String(where.n))
-    if (where?.kind === 'street') q.set('rue', where.name)
-    if (where?.kind === 'venue') q.set('v', String(where.id))
-    else if (chosenWhere?.kind === 'venue') q.set('v', String(chosenWhere.id))
+    if (selected) q.set('v', String(selected))
     history.replaceState(null, '', `${location.pathname}?${q}`)
-  }, [lang, where, chosenWhere])
+  }, [lang, selected])
 
-  const entries = useMemo(
-    () => (index.value && where ? index.value.terraces.filter((e) => contains(index.value!, e, where)) : []),
-    [index.value, where],
-  )
-  const cellIds = [...new Set(entries.map((e) => e.cell))].sort()
+  const onView = (v: View) => {
+    setView(v)
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ lat: v.lat, lon: v.lon, zoom: v.zoom }))
+    } catch {
+      // Not remembered, that's all.
+    }
+  }
+
+  // Terraces around the view; their horizons come by 500 m cells, nearest first.
+  const inView = useMemo(() => (index.value && view ? index.value.terraces.filter((e) => within(e, view, 0.15)) : []), [index.value, view])
+  const detailed = view != null && view.zoom >= DETAIL_ZOOM
+  const cellIds = useMemo(() => {
+    if (!view) return []
+    const d = new Map<string, number>()
+    if (detailed) for (const e of inView) d.set(e.cell, Math.min(d.get(e.cell) ?? Infinity, Math.hypot(e.lat - view.lat, (e.lon - view.lon) * 0.66)))
+    const ids = [...d].sort((a, b) => a[1] - b[1]).slice(0, MAX_CELLS).map(([c]) => c)
+    const sel = selected != null ? index.value?.terraces.find((e) => e.id === selected) : null
+    if (sel && !ids.includes(sel.cell)) ids.push(sel.cell)
+    return ids.sort()
+  }, [view, detailed, inView, selected, index.value])
   const cells = useAsync(cellIds.length ? `cells|${cellIds.join(',')}` : null, () => Promise.all(cellIds.map(fetchCell)).then((c) => c.flat()))
-  const terraces = useMemo(() => {
-    const ids = new Set(entries.filter((e) => !kind || e.kind & kind).map((e) => e.id))
-    return (cells.value ?? []).filter((tr) => ids.has(tr.id))
-  }, [cells.value, entries, kind])
 
-  // Sky around the chosen place (rounded so that nearby choices share it).
-  const centre = where?.kind === 'here' ? where : centreOf(entries, PARIS)
+  // The sky around the map's centre (rounded so that small moves share it).
   const snap = (v: number, step: number) => Math.round(v / step) * step
+  const centre = view ?? start
   const wLat = snap(centre.lat, 0.02)
   const wLon = snap(centre.lon, 0.03)
-  const weather = useAsync(where ? `w|${wLat},${wLon}|${Math.floor(now / 900)}` : null, () => fetchWeather(wLat, wLon))
+  const weather = useAsync(`w|${wLat},${wLon}|${Math.floor(now / 900)}`, () => fetchWeather(wLat, wLon))
   const sLat = snap(centre.lat, 0.1)
   const sLon = snap(centre.lon, 0.1)
-  const sat = useAsync(where ? `s|${sLat},${sLon}|${Math.floor(now / 300)}` : null, () => fetchSatellite(sLat, sLon))
+  const sat = useAsync(`s|${sLat},${sLon}|${Math.floor(now / 300)}`, () => fetchSatellite(sLat, sLon))
   const sky: SkyNowcast = useMemo(
     () => ({ sat: sat.value, motion: sat.value ? satMotion(sat.value) : null, weather: weather.value }),
     [sat.value, weather.value],
   )
 
-  const time =
-    when.kind === 'now' ? now : when.kind === 'in' ? now + when.minutes * 60 : parisMidnight(now, when.day) + when.minutes * 60
-  const time5 = Math.floor(time / STEP) * STEP
+  const time = Math.floor((now + hours * 3600) / STEP) * STEP
+
+  const pins: Pin[] = useMemo(() => {
+    if (!index.value) return []
+    const status = new Map<number, Pin>()
+    if (detailed && view) {
+      for (const tr of cells.value ?? []) {
+        if (!within(tr, view, 0.15)) continue
+        const s = statusAt(time, tr, index.value.meta, sky)
+        status.set(tr.id, { id: tr.id, lat: tr.lat, lon: tr.lon, state: s.state, sunny: sunny(s) })
+      }
+    }
+    return inView.map((e) => status.get(e.id) ?? { id: e.id, lat: e.lat, lon: e.lon, state: null, sunny: false })
+  }, [index.value, detailed, view, cells.value, inView, time, sky])
+
+  const terrace = selected != null ? (cells.value ?? []).find((tr) => tr.id === selected) : undefined
 
   const locate = () => {
     setLocating('busy')
     navigator.geolocation?.getCurrentPosition(
       (p) => {
         setLocating('idle')
-        setWhere({ kind: 'here', lat: p.coords.latitude, lon: p.coords.longitude })
+        const here = { lat: p.coords.latitude, lon: p.coords.longitude }
+        setUser(here)
+        setJump({ ...here, zoom: 17, key: `me${Date.now()}` })
       },
       () => setLocating('denied'),
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
 
+  // Weather symbol for each time button, at the map's centre.
+  const symbol = (h: number) => {
+    const tt = now + h * 3600
+    const day = sunPosition(tt, centre.lat, centre.lon).el > 0
+    const rain = sky.weather ? rainBetween(sky.weather, tt - 450, tt + 450) : 0
+    return sky.weather || sky.sat ? icon(clearAround(sky, tt, centre.lat, centre.lon), rain, day) : '·'
+  }
+
+  const sunnyCount = pins.filter((p) => p.sunny).length
+  const hint = !index.value
+    ? index.error
+      ? t('error', { msg: index.error })
+      : t('loading')
+    : !detailed
+      ? t('zoomIn')
+      : cells.loading && !cells.value
+        ? t('loading')
+        : locating === 'denied'
+          ? t('geoDenied')
+          : null
+
   return (
-    <div className="page">
-      <header className="top">
-        <span className="brand">Terrazur</span>
-        <button type="button" className="lang" onClick={toggleLang} aria-label={t('switchLang')}>
-          {lang === 'fr' ? 'EN' : 'FR'}
-        </button>
-      </header>
-      <p className="tagline">{t('tagline')}</p>
-
-      <section className="step">
-        <h2><span className="n">1</span>{t('where')}</h2>
-        {index.value && (
-          <WhereInput
-            index={index.value}
-            where={where}
-            lang={lang}
-            onPick={setWhere}
-            onLocate={locate}
-            locating={locating === 'busy'}
-          />
-        )}
-        {locating === 'denied' && <p className="note">{t('geoDenied')}</p>}
-        {index.error && <p className="note">{t('error', { msg: index.error })}</p>}
-      </section>
-
-      {where && (
-        <section className="step">
-          <h2><span className="n">2</span>{t('when')}</h2>
-          <div className="choices">
-            <button type="button" aria-pressed={when.kind === 'now'} onClick={() => setWhen({ kind: 'now' })}>{t('now')}</button>
-            {[60, 120].map((m) => (
-              <button key={m} type="button" aria-pressed={when.kind === 'in' && when.minutes === m} onClick={() => setWhen({ kind: 'in', minutes: m })}>
-                {t('inHours', { n: m / 60 })}
-              </button>
-            ))}
-            <button
-              type="button"
-              aria-pressed={when.kind === 'at'}
-              onClick={() => setWhen({ kind: 'at', day: 0, minutes: Math.min(21 * 60, Math.ceil((now - parisMidnight(now)) / 1800) * 30 + 180) })}
-            >
-              {t('otherTime')}
+    <div className="app">
+      <header className="bar">
+        <div className="top">
+          <span className="brand">Terrazur</span>
+          <button type="button" className="lang" onClick={toggleLang} aria-label={t('switchLang')}>
+            {lang === 'fr' ? 'EN' : 'FR'}
+          </button>
+        </div>
+        <div className="hours-pick" role="group" aria-label={t('when')}>
+          {HOURS.map((h) => (
+            <button key={h} type="button" aria-pressed={hours === h} onClick={() => setHours(h)}>
+              <span className="i" aria-hidden="true">{symbol(h)}</span>
+              <span>{h === 0 ? t('now') : `+${h} h`}</span>
             </button>
-          </div>
-          {when.kind === 'at' && (
-            <div className="choices sub">
-              <button type="button" aria-pressed={when.day === 0} onClick={() => setWhen({ ...when, day: 0 })}>{t('today')}</button>
-              <button type="button" aria-pressed={when.day === 1} onClick={() => setWhen({ ...when, day: 1 })}>{t('tomorrow')}</button>
-              <input
-                type="time"
-                step={300}
-                value={`${String(Math.floor(when.minutes / 60)).padStart(2, '0')}:${String(when.minutes % 60).padStart(2, '0')}`}
-                onChange={(e) => {
-                  const [h, m] = e.target.value.split(':').map(Number)
-                  if (Number.isFinite(h) && Number.isFinite(m)) setWhen({ ...when, minutes: h * 60 + m })
-                }}
-                aria-label={t('time')}
-              />
-            </div>
-          )}
-        </section>
-      )}
+          ))}
+        </div>
+      </header>
 
-      {where && (
-        <section className="step">
-          <h2><span className="n">3</span>{t('skyTitle')}</h2>
-          <Sky sky={sky} lat={centre.lat} lon={centre.lon} points={entries} time={time5} now={now} satError={sat.error} />
-        </section>
-      )}
-
-      {where && index.value && (
-        <section className="step">
-          <h2><span className="n">4</span>{t('terraces')}</h2>
-          <div className="choices kinds">
-            {([[0, 'kAll'], [1, 'kCafe'], [2, 'kBar'], [4, 'kRestaurant']] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
-                {t(label)}
-              </button>
-            ))}
-          </div>
-          <Results
-            terraces={terraces}
-            loading={cells.loading && !cells.value}
+      <main className="stage">
+        <TerraceMap pins={pins} zoom={view?.zoom ?? start.zoom} selected={selected} user={user} focus={focus} onView={onView} onPick={setSelected} />
+        {hint ? (
+          <p className="map-hint">{hint}</p>
+        ) : (
+          detailed && <p className="map-hint">{t('sunnyNow', { n: sunnyCount })}</p>
+        )}
+        <button type="button" className="locate" onClick={locate} aria-label={t('aroundMe')} title={t('aroundMe')}>
+          {locating === 'busy' ? '…' : '◎'}
+        </button>
+        {terrace && index.value && (
+          <TerraceSheet
+            key={terrace.id}
+            terrace={terrace}
             meta={index.value.meta}
             sky={sky}
-            time={time5}
+            time={time}
             now={now}
-            user={where.kind === 'here' ? where : null}
-            venue={where.kind === 'venue'}
+            user={user}
+            onClose={() => setSelected(null)}
           />
-        </section>
-      )}
+        )}
+      </main>
 
       <footer className="foot">
         <details>
@@ -209,7 +213,7 @@ export default function App() {
         <p>
           {t('data')} : <a href="https://opendata.paris.fr/explore/dataset/terrasses-autorisations/">Ville de Paris</a> ·{' '}
           <a href="https://geoservices.ign.fr/lidarhd">IGN LiDAR HD</a> · <a href="https://view.eumetsat.int/">EUMETSAT</a> ·{' '}
-          <a href="https://open-meteo.com/">Open-Meteo</a>
+          <a href="https://open-meteo.com/">Open-Meteo</a> · <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
         </p>
       </footer>
     </div>
