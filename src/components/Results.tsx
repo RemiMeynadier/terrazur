@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { fetchPlace, PLACES_KEY } from '../api/places'
-import { num, t } from '../i18n'
+import { t } from '../i18n'
 import { type Answer, answeredRecently, record } from '../lib/feedback'
 import { duration, parisMidnight, prettyName } from '../lib/format'
 import type { HorizonMeta, Terrace } from '../lib/horizon'
@@ -9,7 +8,6 @@ import { type SkyNowcast, skyAt } from '../lib/sky'
 import { type Outlook, outlook, sunny } from '../lib/status'
 import { sunTimes } from '../lib/sun'
 import { distanceM } from '../lib/places'
-import { useAsync } from '../lib/useAsync'
 import { DayStrip, SkyPlot } from './TerraceCharts'
 
 interface Props {
@@ -111,37 +109,16 @@ function Row({ item, open, onToggle, meta, sky, time, now, dayStart, user }: Row
   ]
     .filter(Boolean)
     .join(' · ')
-  const place = useAsync(PLACES_KEY ? `place|${terrace.id}` : null, () =>
-    fetchPlace(terrace.id, terrace.name, terrace.addr, terrace.lat, terrace.lon),
-  ).value
-  const maps = place?.url ?? `https://www.google.com/maps/search/?api=1&query=${terrace.lat},${terrace.lon}`
+  const maps = `https://www.google.com/maps/search/?api=1&query=${terrace.lat},${terrace.lon}`
   return (
     <li className={open ? 'open' : ''}>
       <button type="button" className="item" onClick={onToggle} aria-expanded={open}>
         <i className={`dot st-${o.now.state}`} aria-hidden="true" />
-        <span className="name">
-          {prettyName(terrace.name || terrace.addr)}
-          {place?.rating != null && <span className="rating"> ★ {num(place.rating, 1)}</span>}
-        </span>
+        <span className="name">{prettyName(terrace.name || terrace.addr)}</span>
         <span className="line">{line}</span>
       </button>
       {open && (
         <div className="more">
-          {place?.photo && (
-            <figure className="photo">
-              <img src={place.photo} alt={prettyName(terrace.name)} loading="lazy" />
-              {place.photoBy && (
-                <figcaption>
-                  <a href={place.photoBy.uri} target="_blank" rel="noreferrer">{place.photoBy.name}</a> · Google
-                </figcaption>
-              )}
-            </figure>
-          )}
-          {place?.rating != null && (
-            <p className="note">
-              ★ {num(place.rating, 1)}/5 · {t('reviews', { n: place.count })}
-            </p>
-          )}
           <p className="note">
             {t(STATE_LABEL[o.now.state])} · {prettyName(terrace.addr)} · <a href={maps} target="_blank" rel="noreferrer">{t('directions')}</a>
           </p>

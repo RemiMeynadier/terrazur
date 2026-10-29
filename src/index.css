@@ -478,30 +478,3 @@ input[type='search'] {
   font-size: 1.35rem;
 }
 
-.rating {
-  font-weight: 500;
-  color: var(--ink-2);
-}
-
-.photo {
-  margin: 0 0 10px;
-}
-
-.photo img {
-  display: block;
-  width: 100%;
-  max-height: 260px;
-  object-fit: cover;
-  border-radius: 10px;
-  background: var(--line);
-}
-
-.photo figcaption {
-  margin-top: 4px;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.photo figcaption a {
-  color: inherit;
-}
