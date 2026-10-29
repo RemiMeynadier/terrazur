@@ -4,6 +4,7 @@ export interface Weather {
   time: number[] // unix s, end of each 15-minute interval
   dni: (number | null)[] // direct normal irradiance, W/m², mean over the interval
   temp: (number | null)[]
+  precip: (number | null)[] // mm in the interval
   hourly: { time: number[]; low: number[]; mid: number[]; high: number[]; wind: number[] }
 }
 
@@ -11,7 +12,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<Weather> {
   const q = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
-    minutely_15: 'direct_normal_irradiance,temperature_2m',
+    minutely_15: 'direct_normal_irradiance,temperature_2m,precipitation',
     past_minutely_15: '8',
     forecast_minutely_15: String(4 * 24 * 3),
     hourly: 'cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m',
@@ -29,6 +30,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<Weather> {
     time: m.time,
     dni: m.direct_normal_irradiance,
     temp: m.temperature_2m,
+    precip: m.precipitation,
     hourly: { time: h.time, low: h.cloud_cover_low, mid: h.cloud_cover_mid, high: h.cloud_cover_high, wind: h.wind_speed_10m },
   }
 }
@@ -53,4 +55,13 @@ export function cloudHeight(w: Weather, t: number): number {
   if (h.mid[i] >= 20) return 4.5
   if (h.high[i] >= 20) return 9
   return 2
+}
+
+// Rain (mm) over [from, to), from the 15-minute intervals.
+export function rainBetween(w: Weather, from: number, to: number): number {
+  let sum = 0
+  w.time.forEach((end, i) => {
+    if (end > from && end - 900 < to) sum += w.precip[i] ?? 0
+  })
+  return sum
 }

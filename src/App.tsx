@@ -157,7 +157,7 @@ export default function App() {
       {where && (
         <section className="step">
           <h2><span className="n">3</span>{t('skyTitle')}</h2>
-          <Sky sky={sky} lat={centre.lat} lon={centre.lon} time={time5} now={now} satError={sat.error} />
+          <Sky sky={sky} lat={centre.lat} lon={centre.lon} points={entries} time={time5} now={now} satError={sat.error} />
         </section>
       )}
 

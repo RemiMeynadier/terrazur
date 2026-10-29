@@ -27,6 +27,14 @@ The horizons need ~430 LiDAR tiles and take ~20 minutes to compute, so they are 
 app reads from raw.githubusercontent.com. The app itself is static (GitHub Pages) and does everything else in the
 browser.
 
+## Rating and photo
+
+When the `GOOGLE_PLACES_KEY` repository secret is set (passed to the build as `VITE_GOOGLE_PLACES_KEY`), each
+terrace shown on screen is matched to its café with Google Places (New) Text Search (name + address, within 80 m):
+Google rating, number of reviews and a photo, with the photographer's attribution. Only displayed terraces are
+looked up, once per session. Restrict the key to the site's referrer and to the Places API (New), and set a daily
+quota in the Google Cloud console.
+
 ## On-site checks
 
 Each answer (sun / partly / shade / cloudy) is saved with the terrace, the time, the predicted state, the share of

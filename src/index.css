@@ -439,6 +439,69 @@ input[type='search'] {
   font-weight: 400;
 }
 
-.sky-cell {
-  fill: var(--st-sun);
+.sky-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+
+.sky-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  align-self: center;
+}
+
+.hours {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  margin: 12px 0 4px;
+  padding: 0;
+  max-width: 360px;
+}
+
+.hours li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hours .h {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hours .i {
+  font-size: 1.35rem;
+}
+
+.rating {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.photo {
+  margin: 0 0 10px;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.photo figcaption {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.photo figcaption a {
+  color: inherit;
 }
