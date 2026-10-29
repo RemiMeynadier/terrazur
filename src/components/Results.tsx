@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { t } from '../i18n'
 import { type Answer, answeredRecently, record } from '../lib/feedback'
-import { clock, duration, parisMidnight, prettyName } from '../lib/format'
+import { duration, parisMidnight, prettyName } from '../lib/format'
 import type { HorizonMeta, Terrace } from '../lib/horizon'
 import { STATE_LABEL, sunText } from '../lib/labels'
-import { clearAround, type SkyNowcast, skyAt } from '../lib/sky'
+import { type SkyNowcast, skyAt } from '../lib/sky'
 import { type Outlook, outlook, sunny } from '../lib/status'
-import { sunPosition, sunTimes } from '../lib/sun'
+import { sunTimes } from '../lib/sun'
+import { distanceM } from '../lib/places'
 import { DayStrip, SkyPlot } from './TerraceCharts'
 
 interface Props {
@@ -14,7 +15,6 @@ interface Props {
   loading: boolean
   meta: HorizonMeta & { generated: string }
   sky: SkyNowcast
-  satError: string | null
   time: number
   now: number
   user: { lat: number; lon: number } | null
@@ -28,12 +28,8 @@ interface Item {
 
 const SOON = 90 * 60
 
-function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
-  const k = 111_320
-  return Math.hypot((a.lat - b.lat) * k, (a.lon - b.lon) * k * Math.cos((a.lat * Math.PI) / 180))
-}
 
-export function Results({ terraces, loading, meta, sky, satError, time, now, user }: Props) {
+export function Results({ terraces, loading, meta, sky, time, now, user }: Props) {
   const [open, setOpen] = useState<number | null>(null)
   const [more, setMore] = useState(false)
   const dayStart = parisMidnight(time)
@@ -61,7 +57,6 @@ export function Results({ terraces, loading, meta, sky, satError, time, now, use
     .filter((i) => !sunny(i.o.now) && i.o.from != null && i.o.from - time <= SOON)
     .sort((a, b) => a.o.from! - b.o.from!)
   const shown = more ? sunnyNow : sunnyNow.slice(0, 10)
-  const ref = terraces[0]
 
   const row = (i: Item) => (
     <Row key={i.terrace.id} item={i} open={open === i.terrace.id} onToggle={() => setOpen(open === i.terrace.id ? null : i.terrace.id)} {...{ meta, sky, time, now, dayStart, user }} />
@@ -69,7 +64,6 @@ export function Results({ terraces, loading, meta, sky, satError, time, now, use
 
   return (
     <>
-      <SkyLine sky={sky} lat={ref.lat} lon={ref.lon} time={time} satError={satError} />
       {sunnyNow.length > 0 ? (
         <>
           <p className="count">{t('nSunny', { n: sunnyNow.length, total: items.length })}</p>
@@ -90,30 +84,6 @@ export function Results({ terraces, loading, meta, sky, satError, time, now, use
         </>
       )}
     </>
-  )
-}
-
-// One line on the sky: is the sun out at that time, and for how long.
-function SkyLine({ sky, lat, lon, time, satError }: { sky: SkyNowcast; lat: number; lon: number; time: number; satError: string | null }) {
-  if (sunPosition(time, lat, lon).el <= 0) return <p className="sky-line">{t('skyNight')}</p>
-  const clearAt = (s: number) => clearAround(sky, s, lat, lon)
-  const c = clearAt(time)
-  let change: number | null = null
-  for (let s = time + 300; s <= time + 3 * 3600; s += 300) {
-    if (sunPosition(s, lat, lon).el <= 0) break
-    if (clearAt(s) >= 0.5 !== c >= 0.5) {
-      change = s
-      break
-    }
-  }
-  const head = c >= 0.7 ? t('skySun') : c >= 0.4 ? t('skyMixed') : t('skyCloud')
-  const tail = change == null ? '' : ` · ${c >= 0.5 ? t('skyUntil', { time: clock(change) }) : t('skyFrom', { time: clock(change) })}`
-  return (
-    <p className="sky-line">
-      {head}
-      {tail}
-      {satError && <span className="note"> · {t('skyNoSat')}</span>}
-    </p>
   )
 }
 

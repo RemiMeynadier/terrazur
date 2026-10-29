@@ -130,6 +130,14 @@ const en = {
   aShade: 'Shade',
   aCloud: 'Cloudy',
   thanks: 'Thanks, noted. It helps make the forecast better.',
+  wherePh: 'Street, quartier, arrondissement…',
+  nTerraces: '{n} terraces',
+  noMatch: 'No street, quartier or arrondissement with terraces matches.',
+  sunrise: 'sunrise at {time}',
+  skyAllDay: 'for the coming hours',
+  skyNoData: 'No cloud forecast this far ahead: sun geometry only.',
+  skyBySat: 'Satellite image of {time}, extrapolated along the clouds’ motion.',
+  skyByModel: 'Météo-France AROME forecast.',
   data: 'Data',
 }
 
@@ -149,7 +157,7 @@ const fr: Dict = {
   tomorrow: 'Demain',
   time: 'Heure',
   backToNow: 'Revenir à maintenant',
-  skyTitle: 'Ciel',
+  skyTitle: 'Le ciel',
   skySun: 'Soleil',
   skyMixed: 'Soleil et nuages',
   skyCloud: 'Les nuages cachent le soleil',
@@ -223,6 +231,14 @@ const fr: Dict = {
   aShade: 'Ombre',
   aCloud: 'Nuageux',
   thanks: 'Merci, c’est noté. Cela aide à améliorer la prévision.',
+  wherePh: 'Rue, quartier, arrondissement…',
+  nTerraces: '{n} terrasses',
+  noMatch: 'Aucune rue, aucun quartier ni arrondissement avec des terrasses ne correspond.',
+  sunrise: 'lever du soleil à {time}',
+  skyAllDay: 'pour les heures qui viennent',
+  skyNoData: 'Pas de prévision nuageuse aussi loin : géométrie du soleil seule.',
+  skyBySat: 'Image satellite de {time}, prolongée selon le déplacement des nuages.',
+  skyByModel: 'Prévision Météo-France AROME.',
   data: 'Données',
 }
 

@@ -330,7 +330,7 @@ def _in_ring(ring, x, y):
     return c
 
 
-def add_quartiers(meta):
+def add_quartiers(meta, addresses):
     """Tag each index entry with its quartier and list the quartiers in `meta`."""
     feats = json.loads(curl(QUARTIERS))['features']
     qs = []
@@ -344,6 +344,8 @@ def add_quartiers(meta):
         lat, lon = e[2], e[3]
         q = next((q for q in qs if any(_in_ring(poly[0], lon, lat) for poly in q['polys'])), None)
         e.append(q['id'] if q else 0)
+    for e in meta['terraces']:
+        e.append(addresses.get(e[0], ''))
     meta['quartiers'] = sorted(({k: v for k, v in q.items() if k != 'polys'} for q in qs), key=lambda q: q['id'])
     return meta
 
@@ -399,13 +401,13 @@ def main():
         path = os.path.join(a.out, 'cells', f'{key[0]}_{key[1]}.json')
         if os.path.exists(path):
             for t in json.load(open(path))['terraces']:
-                index.append([t['id'], t['name'], t['lat'], t['lon'], f'{key[0]}_{key[1]}'])
+                index.append([t['id'], t['name'], t['lat'], t['lon'], f'{key[0]}_{key[1]}'])  # + quartier, address below
     meta = {
         'generated': dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds'),
         'tile': TILE, 'az0': AZ0, 'naz': NAZ, 'angleStep': ANGLE_STEP, 'points': 3, 'seat': SEAT,
         'terraces': index,
     }
-    add_quartiers(meta)
+    add_quartiers(meta, {t['id']: t['addr'] for t in terraces})
     with open(os.path.join(a.out, 'index.json'), 'w') as f:
         json.dump(meta, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{done} terraces written', flush=True)

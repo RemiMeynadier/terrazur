@@ -126,6 +126,7 @@ h3 {
 
 button,
 select,
+input[type='search'],
 input[type='time'] {
   font: inherit;
   font-size: 0.95rem;
@@ -409,4 +410,35 @@ summary {
 
 .foot li {
   margin-bottom: 6px;
+}
+
+input[type='search'] {
+  flex: 1 1 220px;
+  min-width: 0;
+  cursor: text;
+}
+
+.suggest {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.suggest button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 10px 2px;
+}
+
+.soft {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.sky-cell {
+  fill: var(--st-sun);
 }

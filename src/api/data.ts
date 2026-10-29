@@ -11,6 +11,7 @@ export interface IndexEntry {
   lon: number
   cell: string
   quartier: number
+  addr: string
 }
 
 export interface Quartier {
@@ -34,7 +35,9 @@ export async function fetchIndex(): Promise<DataIndex> {
   return {
     meta,
     quartiers,
-    terraces: terraces.map(([id, name, lat, lon, cell, quartier]: [number, string, number, number, string, number]) => ({ id, name, lat, lon, cell, quartier })),
+    terraces: terraces.map(([id, name, lat, lon, cell, quartier, addr]: [number, string, number, number, string, number, string]) => ({
+      id, name, lat, lon, cell, quartier, addr: addr ?? '',
+    })),
   }
 }
 

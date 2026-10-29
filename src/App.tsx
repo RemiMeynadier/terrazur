@@ -1,40 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
-import { type DataIndex, fetchCell, fetchIndex } from './api/data'
+import { fetchCell, fetchIndex } from './api/data'
 import { fetchSatellite } from './api/satellite'
 import { fetchWeather } from './api/weather'
 import { Results } from './components/Results'
+import { Sky } from './components/Sky'
+import { WhereInput } from './components/WhereInput'
 import { getLang, type Lang, setLang, t, tList } from './i18n'
 import { flush } from './lib/feedback'
 import { parisMidnight } from './lib/format'
+import { centreOf, contains, type Place } from './lib/places'
 import { satMotion, type SkyNowcast } from './lib/sky'
 import { STEP } from './lib/status'
 import { useAsync, useNow } from './lib/useAsync'
 
 const PARIS = { lat: 48.8566, lon: 2.3522 }
-const AROUND_M = 450
 
-type Where = { kind: 'quartier'; id: number } | { kind: 'here'; lat: number; lon: number }
 type When = { kind: 'now' } | { kind: 'in'; minutes: number } | { kind: 'at'; day: number; minutes: number }
 
-function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
-  const k = 111_320
-  return Math.hypot((a.lat - b.lat) * k, (a.lon - b.lon) * k * Math.cos((a.lat * Math.PI) / 180))
-}
-
-// Shareable links: ?q=<quartier>
-function initialWhere(): Where | null {
-  const q = Number(new URLSearchParams(location.search).get('q'))
-  return q ? { kind: 'quartier', id: q } : null
-}
-
-function inWhere(e: { lat: number; lon: number; quartier: number }, where: Where) {
-  return where.kind === 'quartier' ? e.quartier === where.id : distanceM(e, where) <= AROUND_M
+// Shareable links: ?q=<quartier> | ?arr=<n> | ?rue=<street>
+function initialWhere(): Place | null {
+  const p = new URLSearchParams(location.search)
+  if (p.get('q')) return { kind: 'quartier', id: Number(p.get('q')) }
+  if (p.get('arr')) return { kind: 'arr', n: Number(p.get('arr')) }
+  if (p.get('rue')) return { kind: 'street', name: p.get('rue')! }
+  return null
 }
 
 export default function App() {
   const [lang, setLangState] = useState<Lang>(getLang)
   const now = Math.floor(useNow(60_000) / 1000)
-  const [where, setWhere] = useState<Where | null>(initialWhere)
+  const [where, setWhere] = useState<Place | null>(initialWhere)
   const [when, setWhen] = useState<When>({ kind: 'now' })
   const [locating, setLocating] = useState<'idle' | 'busy' | 'denied'>('idle')
 
@@ -47,6 +42,8 @@ export default function App() {
     document.documentElement.lang = lang
     const q = new URLSearchParams({ lang })
     if (where?.kind === 'quartier') q.set('q', String(where.id))
+    if (where?.kind === 'arr') q.set('arr', String(where.n))
+    if (where?.kind === 'street') q.set('rue', where.name)
     history.replaceState(null, '', `${location.pathname}?${q}`)
   }, [lang, where])
   useEffect(() => void flush(), [])
@@ -54,7 +51,7 @@ export default function App() {
   const index = useAsync('index', fetchIndex)
 
   const entries = useMemo(
-    () => (index.value && where ? index.value.terraces.filter((e) => inWhere(e, where)) : []),
+    () => (index.value && where ? index.value.terraces.filter((e) => contains(index.value!, e, where)) : []),
     [index.value, where],
   )
   const cellIds = [...new Set(entries.map((e) => e.cell))].sort()
@@ -65,7 +62,7 @@ export default function App() {
   }, [cells.value, entries])
 
   // Sky around the chosen place (rounded so that nearby choices share it).
-  const centre = where ? (where.kind === 'here' ? where : (index.value?.quartiers.find((q) => q.id === where.id) ?? PARIS)) : PARIS
+  const centre = where?.kind === 'here' ? where : centreOf(entries, PARIS)
   const snap = (v: number, step: number) => Math.round(v / step) * step
   const wLat = snap(centre.lat, 0.02)
   const wLon = snap(centre.lon, 0.03)
@@ -106,14 +103,16 @@ export default function App() {
 
       <section className="step">
         <h2><span className="n">1</span>{t('where')}</h2>
-        <div className="choices">
-          <button type="button" aria-pressed={where?.kind === 'here'} onClick={locate}>
-            {locating === 'busy' ? t('locating') : t('aroundMe')}
-          </button>
-          {index.value && (
-            <QuartierSelect index={index.value} value={where?.kind === 'quartier' ? where.id : 0} onChange={(id) => setWhere({ kind: 'quartier', id })} />
-          )}
-        </div>
+        {index.value && (
+          <WhereInput
+            index={index.value}
+            where={where}
+            lang={lang}
+            onPick={setWhere}
+            onLocate={locate}
+            locating={locating === 'busy'}
+          />
+        )}
         {locating === 'denied' && <p className="note">{t('geoDenied')}</p>}
         {index.error && <p className="note">{t('error', { msg: index.error })}</p>}
       </section>
@@ -155,15 +154,21 @@ export default function App() {
         </section>
       )}
 
+      {where && (
+        <section className="step">
+          <h2><span className="n">3</span>{t('skyTitle')}</h2>
+          <Sky sky={sky} lat={centre.lat} lon={centre.lon} time={time5} now={now} satError={sat.error} />
+        </section>
+      )}
+
       {where && index.value && (
         <section className="step">
-          <h2><span className="n">3</span>{t('terraces')}</h2>
+          <h2><span className="n">4</span>{t('terraces')}</h2>
           <Results
             terraces={terraces}
             loading={cells.loading && !cells.value}
             meta={index.value.meta}
             sky={sky}
-            satError={sat.error}
             time={time5}
             now={now}
             user={where.kind === 'here' ? where : null}
@@ -187,28 +192,5 @@ export default function App() {
         </p>
       </footer>
     </div>
-  )
-}
-
-function QuartierSelect({ index, value, onChange }: { index: DataIndex; value: number; onChange: (id: number) => void }) {
-  const byArr = new Map<number, DataIndex['quartiers']>()
-  for (const q of index.quartiers) byArr.set(q.arr, [...(byArr.get(q.arr) ?? []), q])
-  return (
-    <select value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={t('quartier')}>
-      <option value={0} disabled>
-        {t('quartier')}
-      </option>
-      {[...byArr]
-        .sort((a, b) => a[0] - b[0])
-        .map(([arr, qs]) => (
-          <optgroup key={arr} label={t('arr', { n: arr })}>
-            {qs.map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-    </select>
   )
 }
