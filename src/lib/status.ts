@@ -28,6 +28,7 @@ export const sunny = (s: Status) => (s.state === 'sun' || s.state === 'partial')
 export interface Outlook {
   now: Status
   until: number | null // when the sun leaves (if sunny now)
+  untilBy: State | null // and why: 'cloud', 'shade', 'trees' or 'night'
   from: number | null // when it comes (if not)
   minutes: number // sunny minutes left today from t
   series: Status[] // every STEP from `start`
@@ -40,13 +41,17 @@ export function outlook(t: number, start: number, end: number, terrace: Terrace,
   const now = statusAt(t, terrace, meta, sky)
   const i0 = Math.max(0, Math.floor((t - start) / STEP) + 1)
   let until: number | null = null
+  let untilBy: State | null = null
   let from: number | null = null
   let minutes = 0
   for (let i = i0; i < series.length; i++) {
     const s = sunny(series[i])
     if (s) minutes += STEP / 60
-    if (sunny(now) && until == null && !s) until = start + i * STEP
+    if (sunny(now) && until == null && !s) {
+      until = start + i * STEP
+      untilBy = series[i].state === 'partial' || series[i].state === 'sun' ? 'shade' : series[i].state
+    }
     if (!sunny(now) && from == null && s) from = start + i * STEP
   }
-  return { now, until, from, minutes, series }
+  return { now, until, untilBy, from, minutes, series }
 }

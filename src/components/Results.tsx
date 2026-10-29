@@ -138,7 +138,7 @@ function Row({ item, open, onToggle, meta, sky, time, now, dayStart, user }: Row
   const sunset = sunTimes(dayStart, terrace.lat, terrace.lon)?.set ?? null
   const line = [
     sunText(o, sunset),
-    sunny(o.now) && o.minutes > 0 ? duration(o.minutes) : null,
+    sunny(o.now) && o.until != null && o.minutes > (o.until - time) / 60 + 5 ? t('totalToday', { d: duration(o.minutes) }) : null,
     dist != null ? `${Math.round(dist / 10) * 10} m` : null,
   ]
     .filter(Boolean)

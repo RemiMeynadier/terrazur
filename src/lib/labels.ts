@@ -13,8 +13,9 @@ export const STATE_LABEL: Record<State, TKey> = {
 
 export function sunText(o: Outlook, sunset: number | null): string {
   if (o.now.state === 'sun' || o.now.state === 'partial') {
-    if (o.until == null) return t('untilSunset')
-    return t('until', { time: clock(o.until) })
+    if (o.until == null || o.untilBy === 'night') return t('untilSunset')
+    const why = o.untilBy === 'cloud' ? t('byClouds') : t('byShade')
+    return `${t('until', { time: clock(o.until) })} (${why})`
   }
   if (o.from != null) return t('from', { time: clock(o.from) })
   return sunset != null ? t('noMore') : ''
