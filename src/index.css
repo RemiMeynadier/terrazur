@@ -259,7 +259,10 @@ summary {
 }
 
 .check {
-  margin-top: 14px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--st-sun) 12%, transparent);
 }
 
 .check p {

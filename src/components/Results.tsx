@@ -119,11 +119,15 @@ function Row({ item, open, onToggle, meta, sky, time, now, dayStart, user }: Row
       </button>
       {open && (
         <div className="more">
+          {Math.abs(time - now) <= 900 ? (
+            <Check terrace={terrace} o={o} meta={meta} sky={sky} now={now} user={user} />
+          ) : (
+            <p className="note">{t('checkOnlyNow')}</p>
+          )}
           <p className="note">
             {t(STATE_LABEL[o.now.state])} · {prettyName(terrace.addr)} · <a href={maps} target="_blank" rel="noreferrer">{t('directions')}</a>
           </p>
           <DayStrip outlook={o} dayStart={dayStart} time={time} now={now} />
-          {Math.abs(time - now) <= 900 && <Check terrace={terrace} o={o} meta={meta} sky={sky} now={now} user={user} />}
           <details>
             <summary>{t('why')}</summary>
             <SkyPlot terrace={terrace} meta={meta} dayStart={dayStart} time={time} />
@@ -145,7 +149,15 @@ const ANSWERS: [Answer, 'aSun' | 'aPartial' | 'aShade' | 'aCloud'][] = [
 // "You're there? Is it in the sun?" Scores the model.
 function Check({ terrace, o, meta, sky, now, user }: { terrace: Terrace; o: Outlook; meta: HorizonMeta & { generated: string }; sky: SkyNowcast; now: number; user: { lat: number; lon: number } | null }) {
   const [given, setGiven] = useState<Answer | null>(() => answeredRecently(terrace.id, now))
-  if (given) return <p className="check done">{t('thanks')}</p>
+  if (given)
+    return (
+      <p className="check done">
+        {t('thanks')}{' '}
+        <button type="button" className="link" onClick={() => setGiven(null)}>
+          {t('changeAnswer')}
+        </button>
+      </p>
+    )
   const answer = (a: Answer) => {
     const s = skyAt(sky, now, terrace.lat, terrace.lon)
     record({
