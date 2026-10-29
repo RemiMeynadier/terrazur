@@ -7,6 +7,7 @@ export type Place =
   | { kind: 'quartier'; id: number }
   | { kind: 'arr'; n: number }
   | { kind: 'here'; lat: number; lon: number }
+  | { kind: 'venue'; id: number; name: string; lat: number; lon: number } // a café: its terraces within 40 m
 
 export interface Suggestion {
   place: Place
@@ -43,6 +44,8 @@ export function contains(index: DataIndex, e: IndexEntry, p: Place): boolean {
       return index.quartiers.find((q) => q.id === e.quartier)?.arr === p.n
     case 'here':
       return distanceM(e, p) <= AROUND_M
+    case 'venue':
+      return e.name === p.name && distanceM(e, p) <= 40
   }
 }
 
@@ -82,6 +85,24 @@ export function suggest(index: DataIndex, query: string, fr: boolean, max = 8): 
     if (norm(qt.name).includes(q)) out.push({ place: { kind: 'quartier', id: qt.id }, label: qt.name, hint: arrLabel(qt.arr, fr) })
   }
   if (q.length >= 3) {
+    // Cafés, bars and restaurants by name, one entry per establishment; whole-word matches first.
+    const words = q.split(' ')
+    const score = (n: string) => {
+      const w = n.split(' ')
+      if (words.every((x) => w.includes(x))) return 2
+      return words.every((x) => w.some((y) => y.startsWith(x))) ? 1 : 0
+    }
+    const hits: [IndexEntry, number][] = []
+    for (const e of index.terraces) {
+      const n = norm(e.name)
+      if (!n.includes(q)) continue
+      if (hits.some(([h]) => h.name === e.name && distanceM(h, e) <= 40)) continue
+      hits.push([e, score(n)])
+    }
+    hits.sort((a, b) => b[1] - a[1] || a[0].name.length - b[0].name.length)
+    for (const [e] of hits.slice(0, 4)) {
+      out.push({ place: { kind: 'venue', id: e.id, name: e.name, lat: e.lat, lon: e.lon }, label: prettyName(e.name), hint: prettyName(e.addr) })
+    }
     for (const [name, key, n] of streetList(index)) {
       if (out.length >= max) break
       if (key.includes(q)) out.push({ place: { kind: 'street', name }, label: prettyName(name), hint: String(n) })
@@ -100,6 +121,8 @@ export function placeLabel(index: DataIndex, p: Place, fr: boolean): string {
       return arrLabel(p.n, fr)
     case 'here':
       return ''
+    case 'venue':
+      return prettyName(p.name)
   }
 }
 
@@ -109,4 +132,20 @@ export function centreOf(entries: { lat: number; lon: number }[], fallback: { la
   const lat = entries.reduce((a, e) => a + e.lat, 0) / entries.length
   const lon = entries.reduce((a, e) => a + e.lon, 0) / entries.length
   return { lat, lon }
+}
+
+// Unique per suggestion: several cafés share a name ("Groupe Flo" at three addresses).
+export function suggestionKey(p: Place): string {
+  switch (p.kind) {
+    case 'street':
+      return `s:${p.name}`
+    case 'quartier':
+      return `q:${p.id}`
+    case 'arr':
+      return `a:${p.n}`
+    case 'venue':
+      return `v:${p.id}`
+    case 'here':
+      return 'here'
+  }
 }

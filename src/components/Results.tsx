@@ -18,6 +18,7 @@ interface Props {
   time: number
   now: number
   user: { lat: number; lon: number } | null
+  venue: boolean // one establishment chosen by name: show it whatever its sun, opened
 }
 
 interface Item {
@@ -29,8 +30,8 @@ interface Item {
 const SOON = 90 * 60
 
 
-export function Results({ terraces, loading, meta, sky, time, now, user }: Props) {
-  const [open, setOpen] = useState<number | null>(null)
+export function Results({ terraces, loading, meta, sky, time, now, user, venue }: Props) {
+  const [opened, setOpen] = useState<number | null | undefined>(undefined)
   const [more, setMore] = useState(false)
   const dayStart = parisMidnight(time)
 
@@ -49,6 +50,7 @@ export function Results({ terraces, loading, meta, sky, time, now, user }: Props
     return groups
   }, [terraces, meta, sky, time, dayStart, user])
 
+  const open = opened === undefined ? (venue ? (items[0]?.terrace.id ?? null) : null) : opened
   if (loading) return <p className="note">{t('loading')}</p>
   if (!terraces.length) return <p className="note">{t('noneHere')}</p>
 
@@ -61,6 +63,8 @@ export function Results({ terraces, loading, meta, sky, time, now, user }: Props
   const row = (i: Item) => (
     <Row key={i.terrace.id} item={i} open={open === i.terrace.id} onToggle={() => setOpen(open === i.terrace.id ? null : i.terrace.id)} {...{ meta, sky, time, now, dayStart, user }} />
   )
+
+  if (venue) return <ul className="items">{items.map(row)}</ul>
 
   return (
     <>

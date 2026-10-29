@@ -4,7 +4,7 @@ Which **Paris café and bar terraces are in the sun**, now and later today, and 
 
 👉 **Live: https://remimeynadier.github.io/terrazur/** (français / English: toggle in the header, or `?lang=fr` / `?lang=en`)
 
-Four steps, nothing else: **where** (a street, a quartier, an arrondissement, or around me), **when** (now, in 1 or 2 hours, another
+Four steps, nothing else: **where** (a café by name, a street, a quartier, an arrondissement, or around me), **when** (now, in 1 or 2 hours, another
 time), the **sky** there and then, the **terraces in the sun** and how long it lasts, and, once there, **is it really in the sun?** Those on-site
 answers are stored with what the model predicted, to score it and improve it.
 

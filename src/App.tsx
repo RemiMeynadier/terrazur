@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchCell, fetchIndex } from './api/data'
+import { type DataIndex, fetchCell, fetchIndex } from './api/data'
 import { fetchSatellite } from './api/satellite'
 import { fetchWeather } from './api/weather'
 import { Results } from './components/Results'
@@ -23,13 +23,21 @@ function initialWhere(): Place | null {
   if (p.get('q')) return { kind: 'quartier', id: Number(p.get('q')) }
   if (p.get('arr')) return { kind: 'arr', n: Number(p.get('arr')) }
   if (p.get('rue')) return { kind: 'street', name: p.get('rue')! }
+  if (p.get('v')) return { kind: 'venue', id: Number(p.get('v')), name: '', lat: 0, lon: 0 } // resolved once the index is in
   return null
+}
+
+// A venue from a shared link only has its id until the index is in.
+function resolveVenue(p: Place | null, index: DataIndex | null): Place | null {
+  if (p?.kind !== 'venue' || p.name) return p
+  const e = index?.terraces.find((x) => x.id === p.id)
+  return e ? { kind: 'venue', id: e.id, name: e.name, lat: e.lat, lon: e.lon } : null
 }
 
 export default function App() {
   const [lang, setLangState] = useState<Lang>(getLang)
   const now = Math.floor(useNow(60_000) / 1000)
-  const [where, setWhere] = useState<Place | null>(initialWhere)
+  const [chosenWhere, setWhere] = useState<Place | null>(initialWhere)
   const [when, setWhen] = useState<When>({ kind: 'now' })
   const [kind, setKind] = useState(0) // 0: all; else 1 café, 2 bar, 4 restaurant
   const [locating, setLocating] = useState<'idle' | 'busy' | 'denied'>('idle')
@@ -39,17 +47,21 @@ export default function App() {
     setLang(next)
     setLangState(next)
   }
+  useEffect(() => void flush(), [])
+
+  const index = useAsync('index', fetchIndex)
+  const where = useMemo(() => resolveVenue(chosenWhere, index.value), [chosenWhere, index.value])
+
   useEffect(() => {
     document.documentElement.lang = lang
     const q = new URLSearchParams({ lang })
     if (where?.kind === 'quartier') q.set('q', String(where.id))
     if (where?.kind === 'arr') q.set('arr', String(where.n))
     if (where?.kind === 'street') q.set('rue', where.name)
+    if (where?.kind === 'venue') q.set('v', String(where.id))
+    else if (chosenWhere?.kind === 'venue') q.set('v', String(chosenWhere.id))
     history.replaceState(null, '', `${location.pathname}?${q}`)
-  }, [lang, where])
-  useEffect(() => void flush(), [])
-
-  const index = useAsync('index', fetchIndex)
+  }, [lang, where, chosenWhere])
 
   const entries = useMemo(
     () => (index.value && where ? index.value.terraces.filter((e) => contains(index.value!, e, where)) : []),
@@ -180,6 +192,7 @@ export default function App() {
             time={time5}
             now={now}
             user={where.kind === 'here' ? where : null}
+            venue={where.kind === 'venue'}
           />
         </section>
       )}

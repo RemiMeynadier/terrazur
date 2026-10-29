@@ -28,6 +28,17 @@ describe('places', () => {
     const street = suggest(index, 'tournon', true)[0]
     expect(street.label).toBe('Rue de Tournon')
     expect(street.hint).toBe('2')
+    const venue = suggest(index, 'grange', true).find((x) => x.place.kind === 'venue')
+    expect(venue).toBeUndefined() // no terrace named so; streets still match
+    expect(suggest(index, 'tournon', true).some((x) => x.place.kind === 'street')).toBe(true)
+  })
+
+  it('finds establishments by name, once each', () => {
+    const idx = { ...index, terraces: [...index.terraces, { id: 4, name: 'CAFE TOURNON', lat: 48.849, lon: 2.337, cell: 'x', quartier: 22, addr: '18 RUE DE TOURNON' }, { id: 5, name: 'CAFE TOURNON', lat: 48.8490001, lon: 2.3370001, cell: 'x', quartier: 22, addr: '18 RUE DE TOURNON' }] } as unknown as DataIndex
+    const v = suggest(idx, 'cafe tour', true).filter((x) => x.place.kind === 'venue')
+    expect(v.length).toBe(1)
+    expect(v[0].label).toBe('Cafe Tournon')
+    expect(idx.terraces.filter((x) => contains(idx, x, v[0].place)).map((x) => x.id)).toEqual([4, 5])
   })
 
   it('selects the terraces of a place', () => {

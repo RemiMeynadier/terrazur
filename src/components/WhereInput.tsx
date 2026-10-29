@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DataIndex } from '../api/data'
 import { type Lang, t } from '../i18n'
-import { type Place, placeLabel, suggest } from '../lib/places'
+import { type Place, placeLabel, suggest, suggestionKey } from '../lib/places'
 
 interface Props {
   index: DataIndex
@@ -44,7 +44,7 @@ export function WhereInput({ index, where, lang, onPick, onLocate, locating }: P
       {list.length > 0 && (
         <ul className="suggest">
           {list.map((s) => (
-            <li key={`${s.place.kind}-${s.label}`}>
+            <li key={suggestionKey(s.place)}>
               <button
                 type="button"
                 onClick={() => {
