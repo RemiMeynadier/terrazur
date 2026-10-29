@@ -39,7 +39,7 @@ export function setLang(lang: Lang) {
 }
 
 const en = {
-  tagline: 'Paris café terraces in the sun, now and later today.',
+  tagline: 'Café terraces in the sun, in Paris.',
   search: 'Address or terrace…',
   myLocation: 'My location',
   geoDenied: 'Location unavailable.',
@@ -105,6 +105,28 @@ const en = {
   method: 'How it works',
   methodItems:
     'Terraces: official list of authorised terraces from the City of Paris (position and size), aligned on the nearest facade (IGN BD TOPO).|Shade: IGN LiDAR HD surface model (50 cm, buildings and trees). For three points on each terrace at seated height (1.1 m), the height of the obstacles is measured in every direction up to 400 m.|Sun: exact solar position (NOAA algorithm, refraction included), every 5 minutes.|Clouds: MTG satellite images (every 10 min) moved along the clouds’ motion and read where the line of sight to the sun crosses the cloud layer (parallax corrected); beyond an hour, AROME’s direct sunlight (sunny when ≥ 120 W/m², WMO definition).|Limits: awnings, umbrellas and new buildings are not in the data; trees are shown as dappled shade, their leaves vary with the season.',
+  where: 'Where?',
+  when: 'When?',
+  terraces: 'Terraces in the sun',
+  aroundMe: 'Around me',
+  locating: 'Locating…',
+  quartier: 'Choose a neighbourhood',
+  arr: '{n}e arrondissement',
+  inHours: 'In {n} h',
+  otherTime: 'Another time',
+  noneHere: 'No terrace here.',
+  noneSunny: 'No terrace in the sun at that time.',
+  nSunny: '{n} of {total} in the sun',
+  showMore: '{n} more',
+  soon: 'Soon in the sun',
+  directions: 'Directions',
+  why: 'Why?',
+  checkQ: 'You’re there? Is the terrace in the sun?',
+  aSun: 'Sun',
+  aPartial: 'Partly',
+  aShade: 'Shade',
+  aCloud: 'Cloudy',
+  thanks: 'Thanks, noted. It helps make the forecast better.',
   data: 'Data',
 }
 
@@ -112,7 +134,7 @@ type Dict = typeof en
 export type TKey = keyof Dict
 
 const fr: Dict = {
-  tagline: 'Les terrasses de Paris au soleil, maintenant et dans la journée.',
+  tagline: 'Les terrasses au soleil, à Paris.',
   search: 'Adresse ou terrasse…',
   myLocation: 'Ma position',
   geoDenied: 'Position indisponible.',
@@ -173,6 +195,28 @@ const fr: Dict = {
   method: 'Méthode',
   methodItems:
     'Terrasses : liste officielle des terrasses autorisées de la Ville de Paris (position et dimensions), alignées sur la façade la plus proche (IGN BD TOPO).|Ombre : modèle de surface LiDAR HD de l’IGN (50 cm, immeubles et arbres). Pour trois points de chaque terrasse à hauteur d’une personne assise (1,1 m), la hauteur des obstacles est mesurée dans toutes les directions jusqu’à 400 m.|Soleil : position exacte du soleil (algorithme NOAA, réfraction comprise), toutes les 5 minutes.|Nuages : images du satellite MTG (toutes les 10 min) déplacées selon le mouvement des nuages et lues là où la ligne de visée vers le soleil traverse la couche nuageuse (parallaxe corrigée) ; au-delà d’une heure, rayonnement direct du modèle AROME (soleil si ≥ 120 W/m², définition OMM).|Limites : les stores, parasols et immeubles récents ne sont pas dans les données ; les arbres sont comptés comme ombre légère, leur feuillage varie selon la saison.',
+  where: 'Où ?',
+  when: 'Quand ?',
+  terraces: 'Terrasses au soleil',
+  aroundMe: 'Autour de moi',
+  locating: 'Localisation…',
+  quartier: 'Choisir un quartier',
+  arr: '{n}e arrondissement',
+  inHours: 'Dans {n} h',
+  otherTime: 'Autre heure',
+  noneHere: 'Aucune terrasse ici.',
+  noneSunny: 'Aucune terrasse au soleil à cette heure-là.',
+  nSunny: '{n} sur {total} au soleil',
+  showMore: '{n} de plus',
+  soon: 'Bientôt au soleil',
+  directions: 'Itinéraire',
+  why: 'Pourquoi ?',
+  checkQ: 'Vous y êtes ? La terrasse est-elle au soleil ?',
+  aSun: 'Soleil',
+  aPartial: 'En partie',
+  aShade: 'Ombre',
+  aCloud: 'Nuageux',
+  thanks: 'Merci, c’est noté. Cela aide à améliorer la prévision.',
   data: 'Données',
 }
 

@@ -44,3 +44,14 @@ export function parisMidnight(unix: number, days = 0): number {
   // Days are 23–25 h around DST changes: step by 24 h and re-anchor.
   return parisMidnight(m + days * 86400 + 4 * 3600)
 }
+
+const SMALL = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'et', 'à', 'au', 'aux', 'en', 'sur', 'sous', 'par'])
+
+// The City's file is in capitals: "LA VOIE LACTEE" → "La Voie Lactee".
+export function prettyName(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/(\s+|-|')/)
+    .map((w, i) => (i > 0 && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join('')
+}

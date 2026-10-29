@@ -4,6 +4,10 @@ Which **Paris café and bar terraces are in the sun**, now and later today, and 
 
 👉 **Live: https://remimeynadier.github.io/terrazur/** (français / English: toggle in the header, or `?lang=fr` / `?lang=en`)
 
+Four steps, nothing else: **where** (around me, or one of the 80 quartiers), **when** (now, in 1 or 2 hours, another
+time), the **terraces in the sun** and how long it lasts, and, once there, **is it really in the sun?** Those on-site
+answers are stored with what the model predicted, to score it and improve it.
+
 A terrace is in the sun when two things hold: the sun is above the buildings and trees around it, and no cloud
 hides it. Terrazur computes both.
 
@@ -11,7 +15,7 @@ hides it. Terrazur computes both.
 
 | Step | How |
 |---|---|
-| **Terraces** | The City of Paris's list of authorised terraces ([open data](https://opendata.paris.fr/explore/dataset/terrasses-autorisations/), ~16,600 open terraces and summer terraces, with position, length and width). Closed terraces and shop displays are left out. Each one is laid out as a rectangle along the nearest facade ([IGN BD TOPO](https://geoservices.ign.fr/bdtopo) buildings). |
+| **Terraces** | The City of Paris's list of authorised terraces ([open data](https://opendata.paris.fr/explore/dataset/terrasses-autorisations/), ~16,600 open terraces and summer terraces, with position, length and width). Closed terraces and shop displays are left out. Each one is laid out as a rectangle along the nearest facade ([IGN BD TOPO](https://geoservices.ign.fr/bdtopo) buildings) and tagged with its [quartier](https://opendata.paris.fr/explore/dataset/quartier_paris/). |
 | **Obstacles** | [IGN LiDAR HD](https://geoservices.ign.fr/lidarhd) surface model at 50 cm (buildings, trees, everything above ground) and terrain model for the ground level. |
 | **Horizons** | For three points along each terrace, at a seated person's shoulders (1.1 m), rays are cast in every direction from 45° to 315° (1° steps) up to 400 m, and the elevation angle of the highest obstacle is kept: once with all obstacles, once with buildings only (the difference is tree shade). Fine 50 cm steps near the terrace, max-pooled 1 m and 2 m grids further out, so thin tall features are not skipped. The terrace itself (umbrellas, awnings at survey time) is ignored. |
 | **Sun** | Exact solar position (NOAA algorithm, atmospheric refraction included) every 5 minutes, compared with the horizons: share of the terrace in the sun, in tree shade, in building shade. Valid for any date. |
@@ -22,6 +26,14 @@ The horizons need ~430 LiDAR tiles and take ~20 minutes to compute, so they are 
 `.github/workflows/horizons.yml` runs monthly (and on demand) and publishes them on the `data` branch, which the
 app reads from raw.githubusercontent.com. The app itself is static (GitHub Pages) and does everything else in the
 browser.
+
+## On-site checks
+
+Each answer (sun / partly / shade / cloudy) is saved with the terrace, the time, the predicted state, the share of
+the terrace in the sun's geometry, the satellite's and the model's chance of sun, and the user's position when they
+used "Around me". Answers wait in an outbox on the phone (`localStorage`) and are sent as a JSON POST to
+`VITE_FEEDBACK_URL` once that build variable is set (for example a Google Apps Script web app writing to a
+spreadsheet, or a Supabase table). Until then they stay on the device.
 
 ## Development
 
@@ -52,13 +64,13 @@ src/
   api/data.ts           horizons index and cells (data branch)
   api/satellite.ts      MTG images → cloud index
   api/weather.ts        AROME 15-minute direct sunlight, cloud layers
-  api/geocode.ts        Paris addresses (Base Adresse Nationale)
   lib/sun.ts            solar position, sunrise and sunset
   lib/horizon.ts        horizon lookup, sun / tree / building shade
   lib/nowcast.ts        cloud motion and extrapolation
   lib/sky.ts            chance the sun is out (line of sight, parallax, blending)
   lib/status.ts         terrace state, how long the sun lasts
-  components/           map, list, terrace detail (day strip, sky panorama), sky panel
+  lib/feedback.ts       on-site answers, outbox
+  components/           results list, day strip, sky panorama
 ```
 
 ## Limits

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cloudIndex } from '../api/satellite'
-import { duration, parisMidnight } from './format'
+import { duration, parisMidnight, prettyName } from './format'
 import { exposure, type HorizonMeta, type Terrace } from './horizon'
 import { cloudOffset } from './sky'
 import { sunPosition, sunTimes } from './sun'
@@ -67,6 +67,11 @@ describe('clouds', () => {
 })
 
 describe('format', () => {
+  it('turns capitals into a readable name', () => {
+    expect(prettyName("LA ROTISSERIE D'ARGENT")).toBe("La Rotisserie D'Argent")
+    expect(prettyName('CAFE DE LA PAIX')).toBe('Cafe de la Paix')
+  })
+
   it('formats durations', () => {
     expect(duration(45)).toBe('45 min')
     expect(duration(80)).toMatch(/^1 h/)

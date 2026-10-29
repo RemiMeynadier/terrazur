@@ -10,20 +10,31 @@ export interface IndexEntry {
   lat: number
   lon: number
   cell: string
+  quartier: number
+}
+
+export interface Quartier {
+  id: number
+  name: string
+  arr: number
+  lat: number
+  lon: number
 }
 
 export interface DataIndex {
   meta: HorizonMeta & { generated: string; tile: number; seat: number }
   terraces: IndexEntry[]
+  quartiers: Quartier[]
 }
 
 export async function fetchIndex(): Promise<DataIndex> {
   const res = await fetch(`${DATA}/index.json`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const { terraces, ...meta } = await res.json()
+  const { terraces, quartiers, ...meta } = await res.json()
   return {
     meta,
-    terraces: terraces.map(([id, name, lat, lon, cell]: [number, string, number, number, string]) => ({ id, name, lat, lon, cell })),
+    quartiers,
+    terraces: terraces.map(([id, name, lat, lon, cell, quartier]: [number, string, number, number, string, number]) => ({ id, name, lat, lon, cell, quartier })),
   }
 }
 

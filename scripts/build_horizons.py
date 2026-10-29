@@ -30,6 +30,7 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(__file__))
 from lambert93 import from_l93, to_l93  # noqa: E402
 
+QUARTIERS = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/quartier_paris/exports/geojson'
 TERRACES = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/terrasses-autorisations/exports/json'
 WMS = 'https://data.geopf.fr/wms-r/wms'
 WFS = 'https://data.geopf.fr/wfs/ows'
@@ -319,6 +320,34 @@ def process_cell(cache, out_dir, key, items):
     return len(terraces)
 
 
+# --- Quartiers (the 80 administrative neighbourhoods) ------------------------
+
+def _in_ring(ring, x, y):
+    c = False
+    for (ax, ay), (bx, by) in zip(ring, ring[1:]):
+        if (ay > y) != (by > y) and x < (bx - ax) * (y - ay) / (by - ay) + ax:
+            c = not c
+    return c
+
+
+def add_quartiers(meta):
+    """Tag each index entry with its quartier and list the quartiers in `meta`."""
+    feats = json.loads(curl(QUARTIERS))['features']
+    qs = []
+    for f in feats:
+        g = f['geometry']
+        polys = g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]
+        p = f['properties']
+        qs.append({'id': int(p['c_qu']), 'name': p['l_qu'], 'arr': int(p['c_ar']),
+                   'lat': round(p['geom_x_y']['lat'], 5), 'lon': round(p['geom_x_y']['lon'], 5), 'polys': polys})
+    for e in meta['terraces']:
+        lat, lon = e[2], e[3]
+        q = next((q for q in qs if any(_in_ring(poly[0], lon, lat) for poly in q['polys'])), None)
+        e.append(q['id'] if q else 0)
+    meta['quartiers'] = sorted(({k: v for k, v in q.items() if k != 'polys'} for q in qs), key=lambda q: q['id'])
+    return meta
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
@@ -376,6 +405,7 @@ def main():
         'tile': TILE, 'az0': AZ0, 'naz': NAZ, 'angleStep': ANGLE_STEP, 'points': 3, 'seat': SEAT,
         'terraces': index,
     }
+    add_quartiers(meta)
     with open(os.path.join(a.out, 'index.json'), 'w') as f:
         json.dump(meta, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{done} terraces written', flush=True)

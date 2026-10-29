@@ -1,54 +1,15 @@
 import { useMemo } from 'react'
 import { horizonAt, type HorizonMeta, type Terrace } from '../lib/horizon'
-import { num, t, tList, type TKey } from '../i18n'
+import { t, tList, type TKey } from '../i18n'
 import { useWidth } from '../lib/chartUtils'
-import { clock, duration } from '../lib/format'
-import { STATE_LABEL, sunText } from '../lib/labels'
+import { clock } from '../lib/format'
 import { type Outlook, type State, STEP } from '../lib/status'
 import { sunPosition } from '../lib/sun'
-
-interface Props {
-  terrace: Terrace
-  meta: HorizonMeta
-  outlook: Outlook
-  dayStart: number
-  time: number
-  now: number
-  sunset: number | null
-  onClose: () => void
-}
-
-export function TerraceDetail({ terrace, meta, outlook, dayStart, time, now, sunset, onClose }: Props) {
-  const o = outlook
-  return (
-    <article className="detail">
-      <header className="detail-head">
-        <div>
-          <h2>{terrace.name || terrace.addr}</h2>
-          <p className="muted small">
-            {[terrace.addr, t('dims', { L: num(terrace.L, 1), W: num(terrace.W, 1) }), terrace.typ.toLowerCase()].filter(Boolean).join(' · ')}
-          </p>
-        </div>
-        <button type="button" className="ghost" onClick={onClose} aria-label={t('close')}>✕</button>
-      </header>
-      <p className={`detail-state st-${o.now.state}`}>
-        <i className={`swatch st-${o.now.state}`} />
-        <strong>{t(STATE_LABEL[o.now.state])}</strong> {sunText(o, sunset)}
-        {o.minutes > 0 && <span className="muted"> · {t('minutesLeft', { d: duration(o.minutes) })}</span>}
-      </p>
-      <h3>{t('dayStrip')}</h3>
-      <DayStrip outlook={o} dayStart={dayStart} time={time} now={now} />
-      <h3>{t('skyPlot')}</h3>
-      <SkyPlot terrace={terrace} meta={meta} dayStart={dayStart} time={time} />
-      <p className="muted small">{t('skyPlotHelp')}</p>
-    </article>
-  )
-}
 
 const STRIP_STATES: State[] = ['sun', 'partial', 'trees', 'shade', 'cloud']
 
 // One cell per 5 minutes, sunrise to sunset.
-function DayStrip({ outlook, dayStart, time, now }: { outlook: Outlook; dayStart: number; time: number; now: number }) {
+export function DayStrip({ outlook, dayStart, time, now }: { outlook: Outlook; dayStart: number; time: number; now: number }) {
   const { ref, width } = useWidth<HTMLDivElement>()
   const cells = outlook.series.map((s, i) => ({ s, t: dayStart + i * STEP })).filter((c) => c.s.state !== 'night')
   if (!cells.length) return null
@@ -87,7 +48,7 @@ function DayStrip({ outlook, dayStart, time, now }: { outlook: Outlook; dayStart
 }
 
 // Panorama from the terrace's middle point: obstacles against the sun's path.
-function SkyPlot({ terrace, meta, dayStart, time }: { terrace: Terrace; meta: HorizonMeta; dayStart: number; time: number }) {
+export function SkyPlot({ terrace, meta, dayStart, time }: { terrace: Terrace; meta: HorizonMeta; dayStart: number; time: number }) {
   const { ref, width } = useWidth<HTMLDivElement>()
   const height = 200
   const M = { top: 10, right: 8, bottom: 22, left: 30 }
