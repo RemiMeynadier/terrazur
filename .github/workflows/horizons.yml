@@ -29,6 +29,7 @@ jobs:
           python-version: '3.13'
       - run: pip install numpy pillow
       - run: python scripts/build_horizons.py "$RUNNER_TEMP/out" --cache "$RUNNER_TEMP/cache"
+      - run: python scripts/build_links.py "$RUNNER_TEMP/out"
       - name: Publish to the data branch
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}

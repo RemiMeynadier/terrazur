@@ -58,3 +58,11 @@ export function fetchCell(cell: string): Promise<Terrace[]> {
   }
   return p
 }
+
+// Website (or Instagram / Facebook page) by terrace id, from OpenStreetMap
+// (scripts/build_links.py). Optional: no links if the file is missing.
+export async function fetchLinks(): Promise<Record<string, string>> {
+  const res = await fetch(`${DATA}/links.json`)
+  if (!res.ok) return {}
+  return (await res.json()).links
+}

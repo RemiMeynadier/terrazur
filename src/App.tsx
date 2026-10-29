@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchCell, fetchIndex } from './api/data'
+import { fetchCell, fetchIndex, fetchLinks } from './api/data'
 import { fetchSatellite } from './api/satellite'
 import { fetchWeather, rainBetween } from './api/weather'
 import { type Focus, type Pin, TerraceMap, type View } from './components/TerraceMap'
@@ -56,6 +56,7 @@ export default function App() {
   useEffect(() => void flush(), [])
 
   const index = useAsync('index', fetchIndex)
+  const links = useAsync('links', fetchLinks)
   const linked = useMemo(() => {
     const id = linkedTerrace()
     return id ? (index.value?.terraces.find((e) => e.id === id) ?? null) : null
@@ -196,6 +197,7 @@ export default function App() {
             time={time}
             now={now}
             user={user}
+            link={links.value?.[terrace.id] ?? null}
             onClose={() => setSelected(null)}
           />
         )}

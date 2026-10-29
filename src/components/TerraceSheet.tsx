@@ -17,12 +17,13 @@ interface Props {
   time: number
   now: number
   user: { lat: number; lon: number } | null
+  link: string | null // its website, if known
   onClose: () => void
 }
 
 // The terrace picked on the map: its name and sun at a glance; tap the name
 // for the on-site check, the day strip and the "why".
-export function TerraceSheet({ terrace, meta, sky, time, now, user, onClose }: Props) {
+export function TerraceSheet({ terrace, meta, sky, time, now, user, link, onClose }: Props) {
   const [open, setOpen] = useState(false)
   const dayStart = parisMidnight(time)
   const o = outlook(time, dayStart, dayStart + 86400, terrace, meta, sky)
@@ -55,6 +56,12 @@ export function TerraceSheet({ terrace, meta, sky, time, now, user, onClose }: P
           )}
           <p className="note">
             {t(STATE_LABEL[o.now.state])} · {prettyName(terrace.addr)} · <a href={maps} target="_blank" rel="noreferrer">{t('directions')}</a>
+            {link && (
+              <>
+                {' · '}
+                <a href={link} target="_blank" rel="noreferrer">{linkLabel(link)}</a>
+              </>
+            )}
           </p>
           <DayStrip outlook={o} dayStart={dayStart} time={time} now={now} />
           <details>
@@ -66,6 +73,13 @@ export function TerraceSheet({ terrace, meta, sky, time, now, user, onClose }: P
       )}
     </section>
   )
+}
+
+// "Instagram" or "Facebook" when that's all there is, else "Website".
+function linkLabel(url: string): string {
+  if (/instagram\.com/i.test(url)) return 'Instagram'
+  if (/facebook\.com/i.test(url)) return 'Facebook'
+  return t('website')
 }
 
 const ANSWERS: [Answer, string, TKey][] = [
