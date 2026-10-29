@@ -74,3 +74,20 @@ export function skyAt(s: SkyNowcast, t: number, lat: number, lon: number): SkyAt
   if (model == null) return { clear: sat, sat, model }
   return { clear: w * sat + (1 - w) * model, sat, model }
 }
+
+// Broken clouds flicker from one 5-minute step to the next: a 15-minute mean
+// is what someone sitting there experiences. Used everywhere a state is shown.
+// Cached per ~150 m: a satellite pixel is ~400 m, so neighbouring terraces share it.
+const cache = new WeakMap<SkyNowcast, Map<string, number>>()
+
+export function clearAround(s: SkyNowcast, t: number, lat: number, lon: number): number {
+  let m = cache.get(s)
+  if (!m) cache.set(s, (m = new Map()))
+  const key = `${t}|${Math.round(lat * 700)}|${Math.round(lon * 500)}`
+  let v = m.get(key)
+  if (v === undefined) {
+    v = [-300, 0, 300].reduce((a, d) => a + skyAt(s, t + d, lat, lon).clear, 0) / 3
+    m.set(key, v)
+  }
+  return v
+}

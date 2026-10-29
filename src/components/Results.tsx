@@ -4,7 +4,7 @@ import { type Answer, answeredRecently, record } from '../lib/feedback'
 import { clock, duration, parisMidnight, prettyName } from '../lib/format'
 import type { HorizonMeta, Terrace } from '../lib/horizon'
 import { STATE_LABEL, sunText } from '../lib/labels'
-import { type SkyNowcast, skyAt } from '../lib/sky'
+import { clearAround, type SkyNowcast, skyAt } from '../lib/sky'
 import { type Outlook, outlook, sunny } from '../lib/status'
 import { sunPosition, sunTimes } from '../lib/sun'
 import { DayStrip, SkyPlot } from './TerraceCharts'
@@ -96,11 +96,7 @@ export function Results({ terraces, loading, meta, sky, satError, time, now, use
 // One line on the sky: is the sun out at that time, and for how long.
 function SkyLine({ sky, lat, lon, time, satError }: { sky: SkyNowcast; lat: number; lon: number; time: number; satError: string | null }) {
   if (sunPosition(time, lat, lon).el <= 0) return <p className="sky-line">{t('skyNight')}</p>
-  const clearAt = (s: number) => {
-    // Broken clouds flicker: judge on 15-minute means.
-    const v = [-300, 0, 300].map((d) => skyAt(sky, s + d, lat, lon).clear)
-    return v.reduce((a, b) => a + b, 0) / v.length
-  }
+  const clearAt = (s: number) => clearAround(sky, s, lat, lon)
   const c = clearAt(time)
   let change: number | null = null
   for (let s = time + 300; s <= time + 3 * 3600; s += 300) {
