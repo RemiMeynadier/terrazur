@@ -3,7 +3,7 @@ import { cloudIndex } from '../api/satellite'
 import { duration, parisMidnight, prettyName } from './format'
 import { exposure, type HorizonMeta, type Terrace } from './horizon'
 import { cloudOffset } from './sky'
-import { sunPosition, sunTimes } from './sun'
+import { daylightHours, sunPosition, sunTimes } from './sun'
 
 describe('sun', () => {
   it('matches the Python pipeline (NOAA)', () => {
@@ -92,5 +92,19 @@ describe('on-site checks', () => {
     expect(verdict('shade', 'trees')).toBe('right')
     expect(verdict('partial', 'sun')).toBe('close')
     expect(verdict('cloud', 'sun')).toBe('wrong')
+  })
+})
+
+describe('daylightHours', () => {
+  const at = (iso: string) => Date.parse(iso) / 1000
+  it('spreads evenly over a late-October day', () => {
+    const hours = daylightHours(at('2026-10-29T23:00:00Z'), 48.8566, 2.3522).map((s) => s / 3600)
+    expect(hours.length).toBeGreaterThanOrEqual(4)
+    const steps = hours.slice(1).map((h, i) => h - hours[i])
+    expect(new Set(steps).size).toBe(1)
+  })
+  it('covers morning to evening in June', () => {
+    const hours = daylightHours(at('2026-06-20T22:00:00Z'), 48.8566, 2.3522).map((s) => s / 3600)
+    expect(hours).toEqual([7, 10, 13, 16, 19])
   })
 })

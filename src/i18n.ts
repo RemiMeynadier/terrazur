@@ -49,6 +49,7 @@ const en = {
   now: 'Now',
   today: 'Today',
   tomorrow: 'Tomorrow',
+  day: 'Day',
   time: 'Time',
   backToNow: 'Back to now',
   // Sky
@@ -166,6 +167,7 @@ const fr: Dict = {
   now: 'Maintenant',
   today: 'Aujourd’hui',
   tomorrow: 'Demain',
+  day: 'Jour',
   time: 'Heure',
   backToNow: 'Revenir à maintenant',
   skyTitle: 'Le ciel',

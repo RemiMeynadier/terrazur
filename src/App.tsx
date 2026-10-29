@@ -6,16 +6,18 @@ import { type Focus, type Pin, TerraceMap, type View } from './components/Terrac
 import { TerraceSheet } from './components/TerraceSheet'
 import { getLang, type Lang, setLang, t, tList } from './i18n'
 import { flush } from './lib/feedback'
+import { clock, parisMidnight, weekday } from './lib/format'
 import { clearAround, satMotion, type SkyNowcast } from './lib/sky'
 import { STEP, statusAt, sunny } from './lib/status'
-import { sunPosition } from './lib/sun'
+import { daylightHours, sunPosition } from './lib/sun'
 import { useAsync, useNow } from './lib/useAsync'
 import { icon } from './lib/weatherIcon'
 
 const VIEW_KEY = 'tz.view'
 const DETAIL_ZOOM = 15 // from here on, each terrace's sun is computed
 const MAX_CELLS = 40
-const HOURS = [0, 1, 2, 3, 4]
+const HOURS = [0, 1, 2, 3, 4] // today: from now
+const DAYS = [0, 1, 2] // today, tomorrow, the day after
 
 // Where the map opens: the last place seen, else central Paris.
 function startFocus(): Focus {
@@ -40,7 +42,8 @@ const within = (p: { lat: number; lon: number }, v: View, pad: number) => {
 export default function App() {
   const [lang, setLangState] = useState<Lang>(getLang)
   const now = Math.floor(useNow(60_000) / 1000)
-  const [hours, setHours] = useState(0)
+  const [day, setDay] = useState(0)
+  const [slot, setSlot] = useState(0)
   const [view, setView] = useState<View | null>(null)
   const [selected, setSelected] = useState<number | null>(linkedTerrace)
   const [start] = useState(startFocus)
@@ -107,7 +110,17 @@ export default function App() {
     [sat.value, weather.value],
   )
 
-  const time = Math.floor((now + hours * 3600) / STEP) * STEP
+  // Today: now to +4 h. Later days: five hours spread over the daylight.
+  const dayStart = parisMidnight(now, day)
+  const slots =
+    day === 0
+      ? HOURS.map((h) => ({ at: now + h * 3600, label: h === 0 ? t('now') : `+${h} h` }))
+      : daylightHours(dayStart, centre.lat, centre.lon).map((s) => ({ at: dayStart + s, label: clock(dayStart + s) }))
+  const time = Math.floor(slots[Math.min(slot, slots.length - 1)].at / STEP) * STEP
+  const pickDay = (d: number) => {
+    setDay(d)
+    setSlot(d === 0 ? 0 : 2)
+  }
 
   const pins: Pin[] = useMemo(() => {
     if (!index.value) return []
@@ -139,8 +152,7 @@ export default function App() {
   }
 
   // Weather symbol for each time button, at the map's centre.
-  const symbol = (h: number) => {
-    const tt = now + h * 3600
+  const symbol = (tt: number) => {
     const day = sunPosition(tt, centre.lat, centre.lon).el > 0
     const rain = sky.weather ? rainBetween(sky.weather, tt - 450, tt + 450) : 0
     return sky.weather || sky.sat ? icon(clearAround(sky, tt, centre.lat, centre.lon), rain, day) : '·'
@@ -168,11 +180,18 @@ export default function App() {
             {lang === 'fr' ? 'EN' : 'FR'}
           </button>
         </div>
-        <div className="hours-pick" role="group" aria-label={t('when')}>
-          {HOURS.map((h) => (
-            <button key={h} type="button" aria-pressed={hours === h} onClick={() => setHours(h)}>
-              <span className="i" aria-hidden="true">{symbol(h)}</span>
-              <span>{h === 0 ? t('now') : `+${h} h`}</span>
+        <div className="days-pick" role="group" aria-label={t('day')}>
+          {DAYS.map((d) => (
+            <button key={d} type="button" aria-pressed={day === d} onClick={() => pickDay(d)}>
+              {d === 0 ? t('today') : d === 1 ? t('tomorrow') : weekday(parisMidnight(now, d) + 43200)}
+            </button>
+          ))}
+        </div>
+        <div className={`hours-pick${day ? ' later' : ''}`} role="group" aria-label={t('when')}>
+          {slots.map((s, i) => (
+            <button key={s.label} type="button" aria-pressed={Math.min(slot, slots.length - 1) === i} onClick={() => setSlot(i)}>
+              <span className="i" aria-hidden="true">{symbol(s.at)}</span>
+              <span>{s.label}</span>
             </button>
           ))}
         </div>

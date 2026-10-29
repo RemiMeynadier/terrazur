@@ -14,10 +14,10 @@ export async function fetchWeather(lat: number, lon: number): Promise<Weather> {
     longitude: lon.toFixed(4),
     minutely_15: 'direct_normal_irradiance,temperature_2m,precipitation',
     past_minutely_15: '8',
-    forecast_minutely_15: String(4 * 24 * 3),
+    forecast_minutely_15: String(4 * 24 * 4), // through the day after tomorrow
     hourly: 'cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m',
     past_days: '1',
-    forecast_days: '3',
+    forecast_days: '4',
     timeformat: 'unixtime',
     timezone: 'Europe/Paris',
   })

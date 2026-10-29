@@ -16,6 +16,12 @@ function fmt(opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
 // "14:35", Paris time.
 export const clock = (unix: number) => fmt({ hour: '2-digit', minute: '2-digit' }).format(new Date(unix * 1000))
 
+// "Saturday", capitalised.
+export const weekday = (unix: number) => {
+  const s = fmt({ weekday: 'long' }).format(new Date(unix * 1000))
+  return s[0].toUpperCase() + s.slice(1)
+}
+
 export const dayName = (unix: number) => fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(unix * 1000))
 
 // "1 h 20" / "45 min".

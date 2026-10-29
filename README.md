@@ -4,7 +4,7 @@ Which **Paris café and bar terraces are in the sun**, now and later today, and 
 
 👉 **Live: https://remimeynadier.github.io/terrazur/** (français / English: toggle in the header, or `?lang=fr` / `?lang=en`)
 
-A map and five buttons, nothing else: pick a time (**now**, **+1 h** … **+4 h**, each with the sky to expect), and every terrace
+A map and five buttons, nothing else: pick a day (**today**, **tomorrow**, **the day after**) and a time (today: **now**, **+1 h** … **+4 h**; later days: up to five hours spread over the daylight; each with the sky to expect), and every terrace
 on the map shows its sun at that time (yellow: in the sun, green: trees, grey: shade, blue: clouds). Tap a terrace, then its name,
 for how long the sun lasts, its day at a glance, the sky seen from it, and, once there, **is it really in the sun?** Those on-site
 answers are stored with what the model predicted, to score it and improve it.

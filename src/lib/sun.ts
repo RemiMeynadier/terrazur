@@ -60,3 +60,16 @@ export function sunTimes(dayStart: number, lat: number, lon: number): { rise: nu
   }
   return { rise: edge(noonGuess - 43200, noonGuess), set: edge(noonGuess, noonGuess + 43200) }
 }
+
+// Up to five whole hours (seconds after `dayStart`), evenly spaced over the part
+// of the day when the sun is well up (above 8°): the times offered for a later day.
+export function daylightHours(dayStart: number, lat: number, lon: number): number[] {
+  const up: number[] = []
+  for (let h = 5; h <= 22; h++) if (sunPosition(dayStart + h * 3600, lat, lon).el > 8) up.push(h)
+  if (!up.length) return [12 * 3600]
+  const span = up[up.length - 1] - up[0]
+  const step = Math.max(1, Math.round(span / 4))
+  const count = Math.min(5, Math.floor(span / step) + 1)
+  const first = up[0] + Math.floor((span - step * (count - 1)) / 2)
+  return Array.from({ length: count }, (_, i) => (first + i * step) * 3600)
+}
