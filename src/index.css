@@ -124,6 +124,15 @@ h3 {
   margin-top: 10px;
 }
 
+.choices.kinds {
+  margin-bottom: 14px;
+}
+
+.choices.kinds button {
+  padding: 5px 12px;
+  font-size: 0.85rem;
+}
+
 button,
 select,
 input[type='search'],

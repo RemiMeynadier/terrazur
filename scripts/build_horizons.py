@@ -17,6 +17,8 @@ import base64
 import concurrent.futures as cf
 import datetime as dt
 import hashlib
+import re
+import urllib.parse
 import json
 import math
 import os
@@ -31,6 +33,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from lambert93 import from_l93, to_l93  # noqa: E402
 
 QUARTIERS = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/quartier_paris/exports/geojson'
+SIRENE = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/records'
 TERRACES = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/terrasses-autorisations/exports/json'
 WMS = 'https://data.geopf.fr/wms-r/wms'
 WFS = 'https://data.geopf.fr/wfs/ows'
@@ -81,6 +84,7 @@ def load_terraces():
             'addr': (r.get('adresse') or '').strip(),
             'arr': r.get('arrondissement'),
             'typ': typ,
+            'siret': (r.get('siret') or '').replace(' ', ''),
             'L': float(r.get('longueur') or 0) or 3.0,
             'W': float(r.get('largeur') or 0) or 1.0,
             'x': x,
@@ -330,6 +334,15 @@ def _in_ring(ring, x, y):
     return c
 
 
+def add_kinds(meta, terraces):
+    """Append the kind bit set to each index entry."""
+    naf = naf_codes(t['siret'] for t in terraces)
+    by_id = {t['id']: kinds(naf.get(t['siret'], ''), t['name'].upper()) for t in terraces}
+    for e in meta['terraces']:
+        e.append(by_id.get(e[0], 0))
+    return naf
+
+
 def add_quartiers(meta, addresses):
     """Tag each index entry with its quartier and list the quartiers in `meta`."""
     feats = json.loads(curl(QUARTIERS))['features']
@@ -350,6 +363,54 @@ def add_quartiers(meta, addresses):
     return meta
 
 
+def assign_ids(terraces):
+    """Stable ids (shared links survive a rebuild): a hash of what identifies the terrace."""
+    seen = set()
+    for t in terraces:
+        key = f"{t['name']}|{t['addr']}|{t['typ']}|{t['x']:.1f}|{t['y']:.1f}|{t['L']}|{t['W']}"
+        n = 0
+        while True:
+            t['id'] = int(hashlib.sha1(f'{key}|{n}'.encode()).hexdigest()[:12], 16)
+            if t['id'] not in seen:
+                break
+            n += 1
+        seen.add(t['id'])
+
+
+# --- Kind of place: café, bar, restaurant (INSEE activity code of the SIRET) ---
+
+CAFE, BAR, RESTAURANT = 1, 2, 4
+CAFE_NAME = re.compile(r'\bCAF[EÉ]|COFFEE|TABAC|SALON DE TH[EÉ]|TEA ROOM|TORR[EÉ]FACT|BRUNCH')
+BAR_NAME = re.compile(r'\bBAR\b|\bPUB\b|TAVERN|\bCAVE\b|BRASSERIE|BI[EÈ]RE|COCKTAIL')
+
+
+def kinds(naf, name):
+    """Bit set: 1 café, 2 bar, 4 restaurant. INSEE files cafés and bars together (56.30Z):
+    the name decides between them."""
+    k = 0
+    if naf.startswith('56.10') or naf.startswith('56.2'):
+        k |= RESTAURANT
+    if naf == '56.30Z':
+        k |= CAFE if CAFE_NAME.search(name) and not BAR_NAME.search(name) else BAR
+    if CAFE_NAME.search(name):
+        k |= CAFE
+    if BAR_NAME.search(name):
+        k |= BAR
+    return k
+
+
+def naf_codes(sirets):
+    """SIRET → activity code, 100 per request."""
+    out, ids = {}, sorted({s for s in sirets if len(s) == 14 and s.isdigit()})
+    for i in range(0, len(ids), 100):
+        batch = ids[i:i + 100]
+        where = urllib.parse.quote('siret in (' + ','.join(f'"{s}"' for s in batch) + ')')
+        url = f'{SIRENE}?where={where}&select=siret,activiteprincipaleetablissement&limit=100'
+        for r in json.loads(curl(url))['results']:
+            out[r['siret']] = r.get('activiteprincipaleetablissement') or ''
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
@@ -361,17 +422,7 @@ def main():
     os.makedirs(a.cache, exist_ok=True)
 
     terraces = load_terraces()
-    # Stable ids (shared links survive a rebuild): a hash of what identifies the terrace.
-    seen = set()
-    for t in terraces:
-        key = f"{t['name']}|{t['addr']}|{t['typ']}|{t['x']:.1f}|{t['y']:.1f}|{t['L']}|{t['W']}"
-        n = 0
-        while True:
-            t['id'] = int(hashlib.sha1(f'{key}|{n}'.encode()).hexdigest()[:12], 16)
-            if t['id'] not in seen:
-                break
-            n += 1
-        seen.add(t['id'])
+    assign_ids(terraces)
     cells = {}
     for t in terraces:
         cells.setdefault((int(t['x'] // TILE), int(t['y'] // TILE)), []).append(t)
@@ -408,6 +459,7 @@ def main():
         'terraces': index,
     }
     add_quartiers(meta, {t['id']: t['addr'] for t in terraces})
+    add_kinds(meta, terraces)
     with open(os.path.join(a.out, 'index.json'), 'w') as f:
         json.dump(meta, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{done} terraces written', flush=True)

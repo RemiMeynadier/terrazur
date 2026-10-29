@@ -31,6 +31,7 @@ export default function App() {
   const now = Math.floor(useNow(60_000) / 1000)
   const [where, setWhere] = useState<Place | null>(initialWhere)
   const [when, setWhen] = useState<When>({ kind: 'now' })
+  const [kind, setKind] = useState(0) // 0: all; else 1 café, 2 bar, 4 restaurant
   const [locating, setLocating] = useState<'idle' | 'busy' | 'denied'>('idle')
 
   const toggleLang = () => {
@@ -57,9 +58,9 @@ export default function App() {
   const cellIds = [...new Set(entries.map((e) => e.cell))].sort()
   const cells = useAsync(cellIds.length ? `cells|${cellIds.join(',')}` : null, () => Promise.all(cellIds.map(fetchCell)).then((c) => c.flat()))
   const terraces = useMemo(() => {
-    const ids = new Set(entries.map((e) => e.id))
+    const ids = new Set(entries.filter((e) => !kind || e.kind & kind).map((e) => e.id))
     return (cells.value ?? []).filter((tr) => ids.has(tr.id))
-  }, [cells.value, entries])
+  }, [cells.value, entries, kind])
 
   // Sky around the chosen place (rounded so that nearby choices share it).
   const centre = where?.kind === 'here' ? where : centreOf(entries, PARIS)
@@ -164,6 +165,13 @@ export default function App() {
       {where && index.value && (
         <section className="step">
           <h2><span className="n">4</span>{t('terraces')}</h2>
+          <div className="choices kinds">
+            {([[0, 'kAll'], [1, 'kCafe'], [2, 'kBar'], [4, 'kRestaurant']] as const).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+                {t(label)}
+              </button>
+            ))}
+          </div>
           <Results
             terraces={terraces}
             loading={cells.loading && !cells.value}
